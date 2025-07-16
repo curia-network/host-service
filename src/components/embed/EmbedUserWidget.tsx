@@ -9,6 +9,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Crown, Globe, Zap } from 'lucide-react';
 import { ProfileData } from '@/types/embed';
+import Image from 'next/image';
 
 interface EmbedUserWidgetProps {
   profileData: ProfileData | null;
@@ -33,9 +34,9 @@ export function EmbedUserWidget({ profileData, onDisconnect }: EmbedUserWidgetPr
   const getUserIcon = () => {
     switch (profileData.type) {
       case 'ens':
-        return <Globe className="w-3 h-3" />;
+        return <Image src="/ens.svg" alt="ENS" width={12} height={12} />;
       case 'universal_profile':
-        return <Zap className="w-3 h-3" />;
+        return <Image src="/lukso.png" alt="LUKSO" width={12} height={12} />;
       case 'anonymous':
         return <User className="w-3 h-3" />;
       default:

@@ -16,6 +16,7 @@ import { AuthenticationStepProps, AuthOption } from '@/types/embed';
 import { UniversalProfileProvider, useUniversalProfile } from '@/contexts/UniversalProfileContext';
 import { EthereumProfileProvider, useEthereumProfile } from '@/contexts/EthereumProfileContext';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import Image from 'next/image';
 
 // Separate component for Universal Profile connection
 const UniversalProfileConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSuccess }) => {
@@ -165,7 +166,7 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
         id: 'ens',
         title: 'ENS Domain',
         description: 'Connect with your Ethereum Name Service domain',
-        icon: <Globe className="w-6 h-6" />,
+        icon: <Image src="/ens.svg" alt="ENS" width={24} height={24} />,
         gradientClass: 'gradient-blue-cyan',
         buttonClass: 'btn-gradient-blue-cyan',
         action: () => handleAuth('ens')
@@ -174,7 +175,7 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
         id: 'universal_profile',
         title: 'Universal Profile',
         description: 'Connect with your LUKSO Universal Profile',
-        icon: <Zap className="w-6 h-6" />,
+        icon: <Image src="/lukso.png" alt="LUKSO" width={24} height={24} />,
         gradientClass: 'gradient-emerald-teal',
         buttonClass: 'btn-gradient-emerald-teal',
         action: () => handleAuth('universal_profile')

@@ -94,7 +94,15 @@ export function SearchCommunitiesModal({
                   <div className="flex items-start gap-3">
                     {/* Community Icon */}
                     <div className="flex-shrink-0">
-                      <span className="text-2xl">{community.icon}</span>
+                      {community.logoUrl ? (
+                        <img 
+                          src={community.logoUrl} 
+                          alt={community.name}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">{community.icon}</span>
+                      )}
                     </div>
 
                     {/* Community Info */}

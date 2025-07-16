@@ -176,8 +176,8 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
         title: 'Universal Profile',
         description: 'Connect with your LUKSO Universal Profile',
         icon: <Image src="/lukso.png" alt="LUKSO" width={24} height={24} />,
-        gradientClass: 'gradient-emerald-teal',
-        buttonClass: 'btn-gradient-emerald-teal',
+        gradientClass: 'gradient-pink-rose',
+        buttonClass: 'btn-gradient-pink-rose',
         action: () => handleAuth('universal_profile')
       },
       {

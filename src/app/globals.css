@@ -1122,6 +1122,11 @@ button[data-rk]:not([class*="bg-"]):not([style*="background"]):hover {
     --tw-gradient-to: #9333ea;
   }
 
+  .gradient-pink-rose {
+    --tw-gradient-from: #ec4899;
+    --tw-gradient-to: #f43f5e;
+  }
+
   /* Button Gradient Utilities */
   .btn-gradient-blue-cyan {
     background: linear-gradient(to right, #2563eb, #0891b2);
@@ -1145,6 +1150,14 @@ button[data-rk]:not([class*="bg-"]):not([style*="background"]):hover {
 
   .btn-gradient-gray-slate:hover {
     background: linear-gradient(to right, #374151, #334155);
+  }
+
+  .btn-gradient-pink-rose {
+    background: linear-gradient(to right, #db2777, #e11d48);
+  }
+
+  .btn-gradient-pink-rose:hover {
+    background: linear-gradient(to right, #be185d, #be123c);
   }
 }
 

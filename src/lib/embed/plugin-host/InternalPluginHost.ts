@@ -21,6 +21,7 @@ export interface InternalAuthContext {
   communityId: string;
   sessionToken?: string;
   externalParams?: Record<string, string>;
+  parentUrl?: string;
 }
 
 /**
@@ -111,6 +112,13 @@ export class InternalPluginHost {
       console.log('[InternalPluginHost] Adding mode parameter to auth iframe:', this.config.mode);
     }
     
+    // Add parent URL to auth iframe
+    if (this.config.parentUrl) {
+      const encodedParentUrl = encodeURIComponent(this.config.parentUrl);
+      authUrl.searchParams.set('cg_parent_url', encodedParentUrl);
+      console.log('[InternalPluginHost] Adding parent URL to auth iframe:', this.config.parentUrl);
+    }
+    
     // Add external parameters from parent page
     if (this.config.externalParams) {
       console.log('[InternalPluginHost] Adding external parameters to auth iframe:', this.config.externalParams);
@@ -183,12 +191,13 @@ export class InternalPluginHost {
   private async handleAuthCompletion(authData: any): Promise<void> {
     console.log('[InternalPluginHost] Auth completion received:', authData);
     
-    // Store auth context including external parameters
+    // Store auth context including external parameters and parent URL
     this.authContext = {
       userId: authData.userId,
       communityId: authData.communityId,
       sessionToken: authData.sessionToken,
-      externalParams: authData.externalParams
+      externalParams: authData.externalParams,
+      parentUrl: authData.parentUrl || this.config.parentUrl
     };
     
     console.log('[InternalPluginHost] Auth context set:', this.authContext);
@@ -254,6 +263,15 @@ export class InternalPluginHost {
       forumUrl.searchParams.set('cg_bg_color', this.config.backgroundColor);
     }
     forumUrl.searchParams.set('iframeUid', this.myUid);
+    
+    // Add parent URL parameter ONLY if community is pre-specified
+    if (this.config.community && this.config.parentUrl) {
+      const encodedParentUrl = encodeURIComponent(this.config.parentUrl);
+      forumUrl.searchParams.set('cg_parent_url', encodedParentUrl);
+      console.log('[InternalPluginHost] Adding parent URL (community pre-specified):', this.config.parentUrl);
+    } else if (!this.config.community) {
+      console.log('[InternalPluginHost] Skipping parent URL (no community pre-specified)');
+    }
     
     // Add external parameters to forum URL
     if (this.authContext.externalParams) {

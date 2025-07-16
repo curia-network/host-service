@@ -46,17 +46,58 @@ function extractCuriaParameters(): Record<string, string> {
   return curiaParams;
 }
 
+/**
+ * Strip curia_* parameters from parent page URL
+ * Preserves all other query parameters but removes our internal curia_* params
+ */
+function stripCuriaParameters(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    
+    // Collect all curia_* parameter keys to delete
+    const keysToDelete: string[] = [];
+    for (const [key] of urlObj.searchParams) {
+      if (key.startsWith('curia_')) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    // Delete all curia_* parameters
+    for (const key of keysToDelete) {
+      urlObj.searchParams.delete(key);
+    }
+    
+    if (keysToDelete.length > 0) {
+      console.log('[Embed] Stripped curia_* parameters:', keysToDelete);
+    }
+    
+    return urlObj.toString();
+  } catch (error) {
+    console.warn('[Embed] Failed to parse parent URL, using original:', url);
+    return url;
+  }
+}
+
 // Main embed initialization function
 function initializeEmbed() {
   console.log('[Embed] Initializing Curia embed script...');
 
   try {
+    // Capture parent page URL and strip curia_* parameters to prevent recursion
+    const rawParentUrl = window.location.href;
+    const parentUrl = stripCuriaParameters(rawParentUrl);
+    console.log('[Embed] Raw parent page URL:', rawParentUrl);
+    console.log('[Embed] Clean parent page URL (curia_* stripped):', parentUrl);
+    
     // Extract external parameters from parent page URL
     const externalParams = extractCuriaParameters();
     
     // Parse configuration from script attributes using captured script element
     // If capture failed, parseEmbedConfig will try document.currentScript as fallback
     const config = parseEmbedConfig(EMBED_SCRIPT_ELEMENT);
+    
+    // Add parent URL to config
+    config.parentUrl = parentUrl;
     
     // Add external parameters to config
     if (Object.keys(externalParams).length > 0) {

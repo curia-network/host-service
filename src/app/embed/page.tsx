@@ -54,7 +54,12 @@ const EmbedContent: React.FC = () => {
     }
   }
   
+  // Extract parent URL from URL parameters
+  const parentUrl = searchParams.get('parent_url');
+  const decodedParentUrl = parentUrl ? decodeURIComponent(parentUrl) : undefined;
+  
   console.log('[Embed] External parameters received:', externalParams);
+  console.log('[Embed] Parent URL received:', decodedParentUrl);
 
   // Check for legacy flow parameter (for backwards compatibility)
   React.useEffect(() => {
@@ -74,6 +79,7 @@ const EmbedContent: React.FC = () => {
       sessionToken,
       identityType,
       externalParams,
+      parentUrl: decodedParentUrl,
       timestamp: new Date().toISOString()
     };
     
@@ -90,7 +96,7 @@ const EmbedContent: React.FC = () => {
     } else {
       console.log('[Embed] DEBUG - WARNING: No parent window or same window, cannot send message');
     }
-  }, [config.mode, externalParams]);
+  }, [config.mode, externalParams, decodedParentUrl]);
 
   // Step transition handlers
   const handleLoadingComplete = useCallback(() => {

@@ -1123,8 +1123,8 @@ button[data-rk]:not([class*="bg-"]):not([style*="background"]):hover {
   }
 
   .gradient-pink-rose {
-    --tw-gradient-from: #ec4899;
-    --tw-gradient-to: #f43f5e;
+    --tw-gradient-from: #fdf2f8;
+    --tw-gradient-to: #fce7f3;
   }
 
   /* Button Gradient Utilities */

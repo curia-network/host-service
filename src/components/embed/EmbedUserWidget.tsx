@@ -36,7 +36,7 @@ export function EmbedUserWidget({ profileData, onDisconnect }: EmbedUserWidgetPr
       case 'ens':
         return <Image src="/ens.svg" alt="ENS" width={12} height={12} />;
       case 'universal_profile':
-        return <Image src="/lukso.png" alt="LUKSO" width={12} height={12} />;
+        return <Image src="/customers/lukso.png" alt="LUKSO" width={12} height={12} />;
       case 'anonymous':
         return <User className="w-3 h-3" />;
       default:

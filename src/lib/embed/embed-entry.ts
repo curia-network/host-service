@@ -24,15 +24,47 @@ if (!EMBED_SCRIPT_ELEMENT) {
   console.error('[Embed] Failed to capture script element during initialization');
 }
 
+/**
+ * Extract curia_* parameters from parent page URL
+ * Converts curia_highlight=comment-123 to ext_highlight=comment-123
+ */
+function extractCuriaParameters(): Record<string, string> {
+  const params = new URLSearchParams(window.location.search);
+  const curiaParams: Record<string, string> = {};
+  
+  console.log('[Embed] Checking parent page URL for curia_* parameters:', window.location.search);
+  
+  for (const [key, value] of params) {
+    if (key.startsWith('curia_')) {
+      const cleanKey = key.substring(6); // Remove 'curia_' prefix
+      const externalKey = `ext_${cleanKey}`; // Add 'ext_' prefix
+      curiaParams[externalKey] = value;
+      console.log(`[Embed] Found curia parameter: ${key}=${value} → ${externalKey}=${value}`);
+    }
+  }
+  
+  return curiaParams;
+}
+
 // Main embed initialization function
 function initializeEmbed() {
   console.log('[Embed] Initializing Curia embed script...');
 
   try {
+    // Extract external parameters from parent page URL
+    const externalParams = extractCuriaParameters();
+    
     // Parse configuration from script attributes using captured script element
     // If capture failed, parseEmbedConfig will try document.currentScript as fallback
     const config = parseEmbedConfig(EMBED_SCRIPT_ELEMENT);
-    console.log('[Embed] Parsed config:', config);
+    
+    // Add external parameters to config
+    if (Object.keys(externalParams).length > 0) {
+      config.externalParams = externalParams;
+      console.log('[Embed] External parameters added to config:', externalParams);
+    }
+    
+    console.log('[Embed] Final parsed config:', config);
 
     // Find or create target container
     const containerId = config.container || 'curia-forum';

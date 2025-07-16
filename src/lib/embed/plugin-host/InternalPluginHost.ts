@@ -20,6 +20,7 @@ export interface InternalAuthContext {
   userId: string;
   communityId: string;
   sessionToken?: string;
+  externalParams?: Record<string, string>;
 }
 
 /**
@@ -110,6 +111,14 @@ export class InternalPluginHost {
       console.log('[InternalPluginHost] Adding mode parameter to auth iframe:', this.config.mode);
     }
     
+    // Add external parameters from parent page
+    if (this.config.externalParams) {
+      console.log('[InternalPluginHost] Adding external parameters to auth iframe:', this.config.externalParams);
+      for (const [key, value] of Object.entries(this.config.externalParams)) {
+        authUrl.searchParams.set(key, value);
+      }
+    }
+    
     // Create auth iframe
     const iframe = document.createElement('iframe');
     iframe.src = authUrl.toString();
@@ -174,11 +183,12 @@ export class InternalPluginHost {
   private async handleAuthCompletion(authData: any): Promise<void> {
     console.log('[InternalPluginHost] Auth completion received:', authData);
     
-    // Store auth context
+    // Store auth context including external parameters
     this.authContext = {
       userId: authData.userId,
       communityId: authData.communityId,
-      sessionToken: authData.sessionToken
+      sessionToken: authData.sessionToken,
+      externalParams: authData.externalParams
     };
     
     console.log('[InternalPluginHost] Auth context set:', this.authContext);
@@ -244,6 +254,14 @@ export class InternalPluginHost {
       forumUrl.searchParams.set('cg_bg_color', this.config.backgroundColor);
     }
     forumUrl.searchParams.set('iframeUid', this.myUid);
+    
+    // Add external parameters to forum URL
+    if (this.authContext.externalParams) {
+      console.log('[InternalPluginHost] Adding external parameters to forum iframe:', this.authContext.externalParams);
+      for (const [key, value] of Object.entries(this.authContext.externalParams)) {
+        forumUrl.searchParams.set(key, value);
+      }
+    }
     
     console.log('[InternalPluginHost] Forum URL:', forumUrl.toString());
     

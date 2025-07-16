@@ -46,6 +46,16 @@ const EmbedContent: React.FC = () => {
     mode: (searchParams.get('mode') as 'full' | 'auth-only' | 'secure-auth') || 'full',
   };
 
+  // Extract external parameters from URL
+  const externalParams: Record<string, string> = {};
+  for (const [key, value] of searchParams) {
+    if (key.startsWith('ext_')) {
+      externalParams[key] = value;
+    }
+  }
+  
+  console.log('[Embed] External parameters received:', externalParams);
+
   // Check for legacy flow parameter (for backwards compatibility)
   React.useEffect(() => {
     const legacy = searchParams.get('legacy');
@@ -63,6 +73,7 @@ const EmbedContent: React.FC = () => {
       communityId,
       sessionToken,
       identityType,
+      externalParams,
       timestamp: new Date().toISOString()
     };
     
@@ -79,7 +90,7 @@ const EmbedContent: React.FC = () => {
     } else {
       console.log('[Embed] DEBUG - WARNING: No parent window or same window, cannot send message');
     }
-  }, [config.mode]);
+  }, [config.mode, externalParams]);
 
   // Step transition handlers
   const handleLoadingComplete = useCallback(() => {

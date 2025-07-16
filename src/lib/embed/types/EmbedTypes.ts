@@ -11,6 +11,7 @@ export interface EmbedConfig {
   height: string;
   width: string;
   mode?: 'full' | 'auth-only';
+  externalParams?: Record<string, string>;
 }
 
 export interface EmbedState {

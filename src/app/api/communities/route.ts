@@ -348,14 +348,13 @@ export async function POST(request: NextRequest) {
       // Create the community
       const communityId = randomUUID();
       const result = await client.query(
-        `INSERT INTO communities (id, name, community_short_id, owner_user_id, is_public, requires_approval, plugin_id, settings)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO communities (id, name, community_short_id, is_public, requires_approval, plugin_id, settings)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, name, created_at, updated_at, community_short_id, plugin_id, is_public, requires_approval, settings, logo_url`,
         [
           communityId,
           body.name,
           body.community_short_id,
-          userId,
           body.is_public ?? true,
           body.requires_approval ?? false,
           body.community_short_id, // Initially set plugin_id = community_short_id

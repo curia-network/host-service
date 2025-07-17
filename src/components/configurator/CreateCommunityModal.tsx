@@ -45,6 +45,7 @@ export function CreateCommunityModal({
   const [isPublic, setIsPublic] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isShortIdManuallyEdited, setIsShortIdManuallyEdited] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +80,7 @@ export function CreateCommunityModal({
       setName('');
       setShortId('');
       setIsPublic(true);
+      setIsShortIdManuallyEdited(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -91,13 +93,15 @@ export function CreateCommunityModal({
     setShortId('');
     setIsPublic(true);
     setError('');
+    setIsShortIdManuallyEdited(false);
     onClose();
   };
 
   // Auto-generate short ID from name
   const handleNameChange = (value: string) => {
     setName(value);
-    if (!shortId) {
+    // Only auto-generate if user hasn't manually edited the shortId
+    if (!isShortIdManuallyEdited) {
       const generatedId = value
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')
@@ -105,6 +109,12 @@ export function CreateCommunityModal({
         .substring(0, 20);
       setShortId(generatedId);
     }
+  };
+
+  // Handle manual shortId editing
+  const handleShortIdChange = (value: string) => {
+    setShortId(value.toLowerCase().replace(/[^a-z0-9-_]/g, ''));
+    setIsShortIdManuallyEdited(true);
   };
 
   return (
@@ -138,7 +148,7 @@ export function CreateCommunityModal({
               <Input
                 id="shortId"
                 value={shortId}
-                onChange={(e) => setShortId(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
+                onChange={(e) => handleShortIdChange(e.target.value)}
                 placeholder="my-awesome-community"
                 required
               />
@@ -148,38 +158,40 @@ export function CreateCommunityModal({
             </p>
           </div>
 
-          {/* Visibility */}
-          <div className="space-y-3">
-            <Label>Visibility</Label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={isPublic}
-                  onChange={() => setIsPublic(true)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <div>
-                  <div className="font-medium">Public</div>
-                  <div className="text-xs text-slate-500">Anyone can discover and join</div>
-                </div>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={!isPublic}
-                  onChange={() => setIsPublic(false)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <div>
-                  <div className="font-medium">Private</div>
-                  <div className="text-xs text-slate-500">Only visible to members</div>
-                </div>
-              </label>
+          {/* Visibility - Hidden for now, all communities are public by default */}
+          {false && (
+            <div className="space-y-3">
+              <Label>Visibility</Label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    checked={isPublic}
+                    onChange={() => setIsPublic(true)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="font-medium">Public</div>
+                    <div className="text-xs text-slate-500">Anyone can discover and join</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    checked={!isPublic}
+                    onChange={() => setIsPublic(false)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="font-medium">Private</div>
+                    <div className="text-xs text-slate-500">Only visible to members</div>
+                  </div>
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Error Display */}
           {error && (

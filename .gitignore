@@ -52,6 +52,7 @@ postgres_data/
 
 # Compiled output
 /dist/
+dist/
 
 .cursorrules
 

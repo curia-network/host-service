@@ -179,6 +179,9 @@
   resolved "https://registry.yarnpkg.com/@curia_/cg-plugin-lib/-/cg-plugin-lib-1.0.6.tgz#1a2211a6c938e7a926ab46109938fff55a72b5c5"
   integrity sha512-aUv1lsxuD+qXQfEqhubld2bvaFLSsBx8wVb6zPFQRYu9MPxhMLy+6UKuT+VjHIi5FkyQef9RgSInxjmQWe7Bbw==
 
+"@curia_/iframe-api-proxy@./packages/iframe-api-proxy":
+  version "1.0.0"
+
 "@ecies/ciphers@^0.2.3":
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/@ecies/ciphers/-/ciphers-0.2.4.tgz#20a4e51f61d521e5e311eb49385d93d91087de51"

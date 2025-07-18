@@ -1,0 +1,30 @@
+import { ApiRequest, ApiResponse } from '../types/ApiTypes';
+import { ProxyClientConfig, ProxyClientStatus } from '../types/ProxyTypes';
+export declare class ApiProxyClient {
+    private config;
+    private isInitialized;
+    private activeIframe;
+    private pendingRequests;
+    private requestTimeouts;
+    private messageListener;
+    private totalRequests;
+    private totalErrors;
+    private responseTimes;
+    private lastActivityTime;
+    constructor(config?: Partial<ProxyClientConfig>);
+    private initialize;
+    private setupMessageListener;
+    setActiveIframe(iframe: HTMLIFrameElement): void;
+    clearActiveIframe(): void;
+    makeApiRequest(request: ApiRequest): Promise<ApiResponse>;
+    private sendRequestToIframe;
+    private setupRequestTimeout;
+    private handleRequestTimeout;
+    private handleProxyResponse;
+    private handleProxyError;
+    private handleRequestError;
+    private retryRequest;
+    private cleanupRequest;
+    getStatus(): ProxyClientStatus;
+    destroy(): void;
+}

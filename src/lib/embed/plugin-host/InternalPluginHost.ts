@@ -12,6 +12,7 @@
  */
 
 import { EmbedConfig } from '../types/EmbedTypes';
+import { ApiProxyClient } from '@curia_/iframe-api-proxy';
 
 /**
  * Authentication context for API requests
@@ -79,6 +80,7 @@ export class InternalPluginHost {
   private hostServiceUrl: string;
   private forumUrl: string;
   private messageListener: ((event: MessageEvent) => void) | null = null;
+  private apiProxy: ApiProxyClient;
 
   constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string) {
     this.container = container;
@@ -86,6 +88,13 @@ export class InternalPluginHost {
     this.hostServiceUrl = hostServiceUrl;
     this.forumUrl = forumUrl;
     this.myUid = this.generateIframeUid(); // Generate instance-specific UID
+    
+    // Initialize API proxy client
+    this.apiProxy = new ApiProxyClient({
+      debug: true,
+      defaultTimeout: 10000,
+      maxRetries: 3
+    });
     
     this.setupMessageListener();
     this.initializeAuthPhase();
@@ -302,6 +311,10 @@ export class InternalPluginHost {
     this.container.appendChild(iframe);
     this.currentIframe = iframe;
     
+    // Set forum iframe as active iframe for API proxy
+    this.apiProxy.setActiveIframe(iframe);
+    console.log('[InternalPluginHost] API proxy client configured for forum iframe');
+    
     console.log('[InternalPluginHost] Forum iframe loaded');
   }
 
@@ -323,39 +336,21 @@ export class InternalPluginHost {
         return;
       }
 
-      // Determine API endpoint
-      let apiEndpoint: string;
-      switch (message.method) {
-        case 'getUserInfo':
-        case 'getUserFriends':
-        case 'getContextData':
-          apiEndpoint = `${this.hostServiceUrl}/api/user`;
-          break;
-          
-        case 'getCommunityInfo':
-        case 'giveRole':
-          apiEndpoint = `${this.hostServiceUrl}/api/community`;
-          break;
-          
-        default:
-          throw new Error(`Unknown API method: ${message.method}`);
+      // Validate method is provided and supported
+      if (!message.method || !['getUserInfo', 'getUserFriends', 'getContextData', 'getCommunityInfo', 'giveRole'].includes(message.method)) {
+        throw new Error(`Unknown API method: ${message.method}`);
       }
 
-      // Make request to host service
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          method: message.method,
-          params: message.params,
-          communityId: this.authContext.communityId,
-          userId: this.authContext.userId
-        })
+      // Use API proxy client to make request (bypasses CSP restrictions)
+      console.log('[InternalPluginHost] Making API request via proxy:', message.method);
+      const result = await this.apiProxy.makeApiRequest({
+        method: message.method as any,
+        params: message.params,
+        communityId: this.authContext.communityId,
+        userId: this.authContext.userId
       });
 
-      const result = await response.json();
+      console.log('[InternalPluginHost] API proxy response:', result);
       
       if (result.success) {
         // Send successful response
@@ -422,6 +417,12 @@ export class InternalPluginHost {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
       console.log('[InternalPluginHost] Message listener removed');
+    }
+    
+    // Clean up API proxy client
+    if (this.apiProxy) {
+      this.apiProxy.destroy();
+      console.log('[InternalPluginHost] API proxy client destroyed');
     }
     
     // Clear state

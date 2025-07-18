@@ -30,6 +30,32 @@ import {
 } from '@/components/embed';
 import { EmbedTopBar } from '@/components/embed/EmbedTopBar';
 import { EmbedConfig, EmbedStep, ProfileData } from '@/types/embed';
+import { ApiProxyServer } from '@curia_/iframe-api-proxy';
+
+// API Proxy Server Component - runs in background to handle proxied requests
+const ApiProxyServerComponent: React.FC = () => {
+  React.useEffect(() => {
+    // Initialize API proxy server when component mounts
+    const proxyServer = new ApiProxyServer({
+      baseUrl: process.env.NEXT_PUBLIC_HOST_SERVICE_URL || 'https://curia.network',
+      debug: true,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log('[Embed] API proxy server initialized:', proxyServer.getStatus());
+
+    // Cleanup on unmount
+    return () => {
+      proxyServer.destroy();
+      console.log('[Embed] API proxy server destroyed');
+    };
+  }, []);
+
+  return null; // This component doesn't render anything
+};
 
 const EmbedContent: React.FC = () => {
   const searchParams = useSearchParams();
@@ -440,6 +466,9 @@ function EmbedPageContent() {
         className={`min-h-screen text-foreground ${!backgroundColor ? 'bg-background' : ''}`}
         style={containerStyles}
       >
+        {/* API Proxy Server - runs in background to handle proxied API requests */}
+        <ApiProxyServerComponent />
+        
         <Suspense fallback={<LoadingStep />}>
           <EmbedContent />
         </Suspense>

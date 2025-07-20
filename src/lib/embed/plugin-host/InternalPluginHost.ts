@@ -26,6 +26,411 @@ export interface InternalAuthContext {
 }
 
 /**
+ * User's community membership info
+ */
+export interface UserCommunityMembership {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  userRole: 'member' | 'moderator' | 'admin' | 'owner';
+  isMember: boolean;
+}
+
+/**
+ * Beautiful Discord-style community navigation sidebar
+ */
+class CommunityNavigationUI {
+  private communities: UserCommunityMembership[];
+  private currentCommunityId: string;
+  private container: HTMLElement | null = null;
+
+  constructor(communities: UserCommunityMembership[], currentCommunityId: string) {
+    this.communities = communities;
+    this.currentCommunityId = currentCommunityId;
+  }
+
+  render(): HTMLElement {
+    const nav = document.createElement('div');
+    nav.className = 'curia-community-nav';
+    
+    // Beautiful inset sidebar styling with gradients
+    nav.style.cssText = `
+      width: 80px;
+      background: linear-gradient(135deg, 
+        var(--sidebar-bg-from, #f8fafc) 0%, 
+        var(--sidebar-bg-to, #f1f5f9) 100%);
+      border-right: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
+      box-shadow: 
+        inset 2px 0 4px rgba(0, 0, 0, 0.05),
+        inset 0 2px 4px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 14px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      position: relative;
+    `;
+    
+    // Add comprehensive styling for dark/light modes and hover effects
+    const globalStyles = document.createElement('style');
+    globalStyles.textContent = `
+      .curia-community-nav::-webkit-scrollbar { display: none; }
+      
+      /* Dark mode variables */
+      [data-theme="dark"] .curia-community-nav,
+      .dark .curia-community-nav {
+        --sidebar-bg-from: #1e293b;
+        --sidebar-bg-to: #0f172a;
+        --sidebar-border: rgba(71, 85, 105, 0.3);
+        --item-hover-bg: rgba(255, 255, 255, 0.1);
+        --item-active-border: #3b82f6;
+        --item-active-shadow: rgba(59, 130, 246, 0.3);
+        --preview-bg: #1e293b;
+        --preview-border: rgba(71, 85, 105, 0.4);
+        --preview-text: #e2e8f0;
+        --preview-text-muted: #94a3b8;
+      }
+      
+      /* Light mode variables */
+      .curia-community-nav {
+        --sidebar-bg-from: #f8fafc;
+        --sidebar-bg-to: #f1f5f9;
+        --sidebar-border: rgba(148, 163, 184, 0.2);
+        --item-hover-bg: rgba(255, 255, 255, 0.8);
+        --item-active-border: #3b82f6;
+        --item-active-shadow: rgba(59, 130, 246, 0.2);
+        --preview-bg: #ffffff;
+        --preview-border: rgba(148, 163, 184, 0.2);
+        --preview-text: #1e293b;
+        --preview-text-muted: #64748b;
+      }
+      
+      /* Community item hover effects */
+      .community-item:hover::after {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 14px;
+        background: var(--item-hover-bg);
+        z-index: -1;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      /* Preview card styling */
+      .community-preview {
+        position: absolute;
+        left: 88px;
+        top: 0;
+        min-width: 220px;
+        max-width: 280px;
+        background: var(--preview-bg);
+        border: 1px solid var(--preview-border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 
+          0 10px 25px rgba(0, 0, 0, 0.1),
+          0 4px 12px rgba(0, 0, 0, 0.08);
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(-8px) scale(0.95);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        backdrop-filter: blur(12px);
+      }
+      
+      .community-preview.show {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+      
+      .community-preview-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      
+      .community-preview-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      
+      .community-preview-info h4 {
+        color: var(--preview-text);
+        font-weight: 600;
+        font-size: 16px;
+        margin: 0 0 4px 0;
+        line-height: 1.2;
+      }
+      
+      .community-preview-info p {
+        color: var(--preview-text-muted);
+        font-size: 14px;
+        margin: 0;
+        line-height: 1.3;
+      }
+      
+      .community-preview-stats {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--preview-border);
+      }
+      
+      .community-preview-stat {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--preview-text-muted);
+        font-size: 13px;
+      }
+    `;
+    document.head.appendChild(globalStyles);
+    
+    this.communities.forEach(community => {
+      const item = this.renderCommunityItem(community);
+      nav.appendChild(item);
+    });
+    
+    this.container = nav;
+    return nav;
+  }
+
+  private renderCommunityItem(community: UserCommunityMembership): HTMLElement {
+    const item = document.createElement('div');
+    const isActive = community.id === this.currentCommunityId;
+    
+    item.className = `community-item ${isActive ? 'active' : ''}`;
+    
+    // Perfect 48x48 squircle styling
+    item.style.cssText = `
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      border: ${isActive ? '2px solid var(--item-active-border)' : '2px solid transparent'};
+      box-shadow: ${isActive ? 
+        '0 4px 12px var(--item-active-shadow), 0 0 0 1px var(--item-active-border)' : 
+        '0 2px 8px rgba(0, 0, 0, 0.1)'
+      };
+    `;
+
+    // Create the beautiful background (logo or gradient + emoji)
+    if (community.logoUrl) {
+      // Use community logo with perfect squircle fit
+      const logo = document.createElement('img');
+      logo.src = community.logoUrl;
+      logo.alt = community.name;
+      logo.style.cssText = `
+        width: calc(100% - 4px);
+        height: calc(100% - 4px);
+        object-fit: cover;
+        border-radius: 10px;
+        margin: 2px;
+      `;
+      logo.onerror = () => {
+        // Fallback to gradient + emoji if image fails
+        item.removeChild(logo);
+        this.addGradientFallback(item, community);
+      };
+      item.appendChild(logo);
+    } else {
+      // Use gradient + emoji fallback (same as API logic)
+      this.addGradientFallback(item, community);
+    }
+
+    // Role badge for admins/owners - updated positioning
+    if (community.userRole === 'admin' || community.userRole === 'owner') {
+      const badge = document.createElement('div');
+      badge.style.cssText = `
+        position: absolute;
+        bottom: -3px;
+        right: -3px;
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: 2px solid var(--sidebar-bg-from, #f8fafc);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+      `;
+      
+      badge.textContent = community.userRole === 'owner' ? '👑' : '⚡';
+      item.appendChild(badge);
+    }
+
+    // Enhanced hover effects with preview
+    let hoverTimeout: NodeJS.Timeout;
+    let previewElement: HTMLElement | null = null;
+
+    item.addEventListener('mouseenter', () => {
+      // Visual hover effect
+      if (!isActive) {
+        item.style.transform = 'scale(1.08) translateY(-1px)';
+        item.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+      }
+
+             // Show preview card after slight delay
+       hoverTimeout = setTimeout(() => {
+         previewElement = this.createPreviewCard(community);
+         if (previewElement) {
+           item.appendChild(previewElement);
+           
+           // Trigger animation
+           requestAnimationFrame(() => {
+             previewElement?.classList.add('show');
+           });
+         }
+       }, 500);
+    });
+
+    item.addEventListener('mouseleave', () => {
+      // Clear timeout
+      clearTimeout(hoverTimeout);
+      
+      // Remove preview
+      if (previewElement) {
+        previewElement.classList.remove('show');
+        setTimeout(() => {
+          if (previewElement && previewElement.parentElement) {
+            previewElement.parentElement.removeChild(previewElement);
+          }
+          previewElement = null;
+        }, 200);
+      }
+
+      // Reset visual state
+      if (!isActive) {
+        item.style.transform = 'scale(1) translateY(0)';
+        item.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+      }
+    });
+
+    return item;
+  }
+
+  private addGradientFallback(item: HTMLElement, community: UserCommunityMembership): void {
+    // Generate gradient class and icon using same logic as API
+    const gradientClass = this.getGradientClass(community.name);
+    const icon = this.getIconForCommunity(community.name);
+    
+    // Set gradient background
+    item.style.background = this.getGradientStyle(gradientClass);
+    
+    // Add emoji icon
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = icon;
+    iconSpan.style.cssText = `
+      font-size: 24px;
+      line-height: 1;
+    `;
+    item.appendChild(iconSpan);
+  }
+
+  private getGradientClass(name: string): string {
+    const gradients = [
+      'gradient-pink-purple',
+      'gradient-blue-cyan', 
+      'gradient-emerald-teal',
+      'gradient-orange-pink',
+      'gradient-purple-blue',
+      'gradient-cyan-emerald'
+    ];
+    
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return gradients[hash % gradients.length];
+  }
+
+  private getIconForCommunity(name: string): string {
+    const lowercaseName = name.toLowerCase();
+    
+    if (lowercaseName.includes('lukso')) return '🆙';
+    if (lowercaseName.includes('ethereum')) return '⟠';
+    if (lowercaseName.includes('defi') || lowercaseName.includes('governance')) return '🏛️';
+    if (lowercaseName.includes('nft') || lowercaseName.includes('art')) return '🎨';
+    if (lowercaseName.includes('gaming')) return '🎮';
+    if (lowercaseName.includes('dao')) return '🏛️';
+    if (lowercaseName.includes('social')) return '👥';
+    if (lowercaseName.includes('tech')) return '🔧';
+    if (lowercaseName.includes('crypto')) return '💎';
+    
+    // Default icons for variety
+    const defaultIcons = ['🌟', '🚀', '💫', '🔮', '⚡', '🌈', '🎯', '🎪'];
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return defaultIcons[hash % defaultIcons.length];
+  }
+
+  private getGradientStyle(gradientClass: string): string {
+    const gradientMap: Record<string, string> = {
+      'gradient-pink-purple': 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+      'gradient-blue-cyan': 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+      'gradient-emerald-teal': 'linear-gradient(135deg, #10b981, #14b8a6)',
+      'gradient-orange-pink': 'linear-gradient(135deg, #f97316, #ec4899)',
+      'gradient-purple-blue': 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+      'gradient-cyan-emerald': 'linear-gradient(135deg, #06b6d4, #10b981)'
+    };
+    
+    return gradientMap[gradientClass] || gradientMap['gradient-blue-cyan'];
+  }
+
+  private createPreviewCard(community: UserCommunityMembership): HTMLElement {
+    const preview = document.createElement('div');
+    preview.className = 'community-preview';
+    
+    // Generate same visual styling as the main icon
+    const gradientClass = this.getGradientClass(community.name);
+    const icon = this.getIconForCommunity(community.name);
+    
+    preview.innerHTML = `
+      <div class="community-preview-header">
+        <div class="community-preview-icon" style="background: ${this.getGradientStyle(gradientClass)}">
+          ${community.logoUrl ? 
+            `<img src="${community.logoUrl}" alt="${community.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+            `<span style="font-size: 18px;">${icon}</span>`
+          }
+        </div>
+        <div class="community-preview-info">
+          <h4>${community.name}</h4>
+          <p>Member since joining</p>
+        </div>
+      </div>
+      <div class="community-preview-stats">
+        <div class="community-preview-stat">
+          <span>👤</span>
+          <span>Your role: ${community.userRole}</span>
+        </div>
+        <div class="community-preview-stat">
+          <span>⚡</span>
+          <span>Active member</span>
+        </div>
+      </div>
+    `;
+    
+    return preview;
+  }
+}
+
+/**
  * Message types for internal communication
  */
 enum InternalMessageType {
@@ -81,6 +486,9 @@ export class InternalPluginHost {
   private forumUrl: string;
   private messageListener: ((event: MessageEvent) => void) | null = null;
   private apiProxy: ApiProxyClient;
+  private communityNavigation: CommunityNavigationUI | null = null;
+  private userCommunities: UserCommunityMembership[] = [];
+  private embedContainer: HTMLElement | null = null;
 
   constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string) {
     this.container = container;
@@ -218,9 +626,121 @@ export class InternalPluginHost {
       return; // Don't switch to forum in auth-only mode
     }
     
+    // Initialize community navigation
+    await this.initializeCommunityNavigation();
+    
     // Normal flow: switch to forum phase
     console.log('[InternalPluginHost] Normal mode - switching to forum');
     await this.switchToForum();
+  }
+
+  /**
+   * Fetch user's community memberships
+   */
+  private async fetchUserCommunities(): Promise<UserCommunityMembership[]> {
+    try {
+      console.log('[InternalPluginHost] Fetching user communities...');
+      
+      if (!this.authContext?.sessionToken) {
+        console.log('[InternalPluginHost] No session token available');
+        return [];
+      }
+
+      // Make direct fetch call to /api/communities with auth
+      const response = await fetch(`${this.hostServiceUrl}/api/communities`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authContext.sessionToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.error('[InternalPluginHost] Failed to fetch communities:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      
+      if (data.userCommunities && Array.isArray(data.userCommunities)) {
+        console.log('[InternalPluginHost] Fetched user communities:', data.userCommunities.length);
+        return data.userCommunities.map((community: any) => ({
+          id: community.id,
+          name: community.name,
+          logoUrl: community.logoUrl,
+          userRole: community.userRole,
+          isMember: community.isMember
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error('[InternalPluginHost] Error fetching user communities:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Initialize community navigation if user has multiple communities
+   */
+  private async initializeCommunityNavigation(): Promise<void> {
+    this.userCommunities = await this.fetchUserCommunities();
+    
+    // Only show navigation if user has 2+ communities
+    if (this.userCommunities.length < 2) {
+      console.log('[InternalPluginHost] User has <2 communities, hiding navigation');
+      return;
+    }
+    
+    console.log('[InternalPluginHost] User has', this.userCommunities.length, 'communities, showing navigation');
+    
+    // Create community navigation (no click handlers for now)
+    this.communityNavigation = new CommunityNavigationUI(
+      this.userCommunities,
+      this.authContext?.communityId || ''
+    );
+  }
+
+  /**
+   * Setup container layout based on whether sidebar should be shown
+   */
+  private setupContainerLayout(): void {
+    if (this.communityNavigation) {
+      // Create embed container with sidebar + iframe layout
+      this.embedContainer = document.createElement('div');
+      this.embedContainer.className = 'curia-embed-container';
+      this.embedContainer.style.cssText = `
+        display: flex;
+        width: ${this.config.width || '100%'};
+        height: ${this.config.height || '700px'};
+        border-radius: ${this.config.borderRadius || '8px'};
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      `;
+
+      // Add navigation sidebar
+      const navElement = this.communityNavigation.render();
+      this.embedContainer.appendChild(navElement);
+
+      // Add iframe container
+      const iframeContainer = document.createElement('div');
+      iframeContainer.className = 'curia-iframe-container';
+      iframeContainer.style.cssText = `
+        flex: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      `;
+      this.embedContainer.appendChild(iframeContainer);
+
+      // Replace container content
+      this.container.innerHTML = '';
+      this.container.appendChild(this.embedContainer);
+    } else {
+      // No sidebar needed - use container directly
+      this.container.innerHTML = '';
+      this.embedContainer = null;
+    }
   }
 
   /**
@@ -234,37 +754,22 @@ export class InternalPluginHost {
       return;
     }
 
-    // Use our instance UID for forum communication
-    
+    // Setup container layout (sidebar + iframe or just iframe)
+    this.setupContainerLayout();
+
     // Build forum URL with parameters
     const forumUrl = new URL(this.forumUrl);
     forumUrl.searchParams.set('mod', 'standalone');
     
-    // ========================================================================
-    // THEME RESOLUTION: Convert "auto" to actual system preference for forum
-    // ========================================================================
-    // The embed route (/embed) can handle "auto" theme perfectly and will 
-    // apply system-aware styling. However, the main Curia forum application
-    // only understands explicit "dark" or "light" values, not "auto".
-    //
-    // This logic resolves "auto" to the user's actual system preference
-    // before sending to the forum, while preserving "auto" functionality
-    // in the embed authentication flow.
-    //
-    // Data Flow:
-    // 1. ✅ Embed route gets "auto" → Handles system detection internally
-    // 2. ✅ Forum route gets "dark"/"light" → Works with resolved value
-    // ========================================================================
+    // Theme resolution
     let resolvedTheme = this.config.theme || 'light';
     if (resolvedTheme === 'auto') {
-      // Detect user's system preference using standard web API
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         resolvedTheme = 'dark';
       } else {
-        resolvedTheme = 'light'; // Safe fallback default
+        resolvedTheme = 'light';
       }
-      console.log('[InternalPluginHost] Resolved auto theme to:', resolvedTheme, 
-                  '(system prefers:', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', ')');
+      console.log('[InternalPluginHost] Resolved auto theme to:', resolvedTheme);
     }
     
     forumUrl.searchParams.set('cg_theme', resolvedTheme);
@@ -283,7 +788,7 @@ export class InternalPluginHost {
     }
     
     // Add external parameters to forum URL
-    if (this.authContext.externalParams) {
+    if (this.authContext?.externalParams) {
       console.log('[InternalPluginHost] Adding external parameters to forum iframe:', this.authContext.externalParams);
       for (const [key, value] of Object.entries(this.authContext.externalParams)) {
         forumUrl.searchParams.set(key, value);
@@ -292,23 +797,19 @@ export class InternalPluginHost {
     
     console.log('[InternalPluginHost] Forum URL:', forumUrl.toString());
     
-    // Remove existing iframe
-    if (this.currentIframe && this.currentIframe.parentElement) {
-      this.currentIframe.parentElement.removeChild(this.currentIframe);
-    }
-    
     // Create forum iframe
     const iframe = document.createElement('iframe');
     iframe.src = forumUrl.toString();
-    iframe.style.width = this.config.width || '100%';
-    iframe.style.height = this.config.height || '700px';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
     iframe.style.border = 'none';
     iframe.style.borderRadius = this.config.borderRadius || '8px';
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
     iframe.setAttribute('allow', getIframePermissions());
     
-    // Add forum iframe to container
-    this.container.appendChild(iframe);
+    // Add iframe to appropriate container
+    const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
+    iframeContainer.appendChild(iframe);
     this.currentIframe = iframe;
     
     // Set forum iframe as active iframe for API proxy

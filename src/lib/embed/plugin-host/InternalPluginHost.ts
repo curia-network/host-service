@@ -332,6 +332,82 @@ class CommunityNavigationUI {
          color: var(--preview-text-muted);
        }
 
+       /* Account Switcher Styles */
+       .profile-menu-accounts {
+         margin: 16px 0;
+         padding-top: 16px;
+         border-top: 1px solid var(--preview-border);
+       }
+
+       .profile-menu-section-title {
+         color: var(--preview-text-muted);
+         font-size: 12px;
+         font-weight: 600;
+         text-transform: uppercase;
+         letter-spacing: 0.5px;
+         margin-bottom: 12px;
+         padding: 0 4px;
+       }
+
+       .profile-menu-account {
+         display: flex;
+         align-items: center;
+         gap: 12px;
+         padding: 10px 8px;
+         border-radius: 8px;
+         background: transparent;
+         border: none;
+         cursor: pointer;
+         transition: all 0.2s ease;
+         color: var(--preview-text);
+         font-size: 14px;
+         text-align: left;
+         width: 100%;
+         margin-bottom: 4px;
+       }
+
+       .profile-menu-account:hover {
+         background: var(--item-hover-bg);
+         transform: translateX(2px);
+       }
+
+       .profile-account-avatar {
+         width: 32px;
+         height: 32px;
+         border-radius: 8px;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         flex-shrink: 0;
+         border: 2px solid rgba(255, 255, 255, 0.1);
+       }
+
+       .profile-account-info {
+         flex: 1;
+         min-width: 0;
+       }
+
+       .profile-account-name {
+         color: var(--preview-text);
+         font-weight: 500;
+         font-size: 14px;
+         margin: 0 0 2px 0;
+         line-height: 1.2;
+         white-space: nowrap;
+         overflow: hidden;
+         text-overflow: ellipsis;
+       }
+
+       .profile-account-type {
+         color: var(--preview-text-muted);
+         font-size: 12px;
+         margin: 0;
+         line-height: 1.2;
+         white-space: nowrap;
+         overflow: hidden;
+         text-overflow: ellipsis;
+       }
+
        /* Community list container - scrollable */
        .community-list-container {
          flex: 1;
@@ -832,7 +908,11 @@ class CommunityNavigationUI {
     menu.style.left = `${left}px`;
     menu.style.bottom = `${bottom}px`;
 
-    // Create menu content
+    // Create menu content with account switcher
+    const allSessions = sessionManager.getAllSessions();
+    const activeSession = sessionManager.getActiveSession();
+    const otherSessions = allSessions.filter(s => s.sessionToken !== activeSession?.sessionToken);
+    
     menu.innerHTML = `
       <div class="profile-menu-header">
         <div class="profile-menu-avatar" style="background: ${this.userProfile?.profilePictureUrl ? 'transparent' : this.getGradientStyle(this.getGradientClass(this.userProfile?.name || 'User'))}">
@@ -846,14 +926,46 @@ class CommunityNavigationUI {
           <p>${this.getIdentityLabel()}</p>
         </div>
       </div>
+      
+      <div class="profile-menu-accounts">
+        <div class="profile-menu-section-title">
+          Accounts (${allSessions.length} active)
+        </div>
+        
+        ${otherSessions.length > 0 ? `
+          <div style="margin-bottom: 8px; color: var(--preview-text-muted); font-size: 11px; padding: 0 4px;">
+            Switch to:
+          </div>
+          ${otherSessions.map(session => `
+            <button class="profile-menu-account" data-action="switch-to-session" data-session-token="${session.sessionToken}">
+              <div class="profile-account-avatar" style="background: ${session.profileImageUrl ? 'transparent' : this.getGradientStyle(this.getGradientClass(session.name || 'User'))}">
+                ${session.profileImageUrl ? 
+                  `<img src="${session.profileImageUrl}" alt="${session.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+                  `<span style="color: white; font-weight: 500; font-size: 12px;">${this.getUserInitials(session.name || 'User')}</span>`
+                }
+              </div>
+              <div class="profile-account-info">
+                <div class="profile-account-name">${session.name || 'Anonymous'}</div>
+                <div class="profile-account-type">${this.getSessionTypeLabel(session)}</div>
+              </div>
+            </button>
+          `).join('')}
+        ` : `
+          <div style="margin-bottom: 8px; color: var(--preview-text-muted); font-size: 11px; padding: 0 4px;">
+            Only one account connected
+          </div>
+        `}
+        
+        <button class="profile-menu-action" data-action="add-account" style="margin-top: 8px; font-size: 12px; padding: 8px 12px;">
+          <div class="profile-menu-action-icon">➕</div>
+          <span>Add Account</span>
+        </button>
+      </div>
+      
       <div class="profile-menu-actions">
         <button class="profile-menu-action" data-action="settings">
           <div class="profile-menu-action-icon">⚙️</div>
           <span>Settings</span>
-        </button>
-        <button class="profile-menu-action" data-action="switch-account">
-          <div class="profile-menu-action-icon">🔄</div>
-          <span>Switch Account</span>
         </button>
         <button class="profile-menu-action" data-action="sign-out">
           <div class="profile-menu-action-icon">🚪</div>
@@ -862,14 +974,22 @@ class CommunityNavigationUI {
       </div>
     `;
     
-    // Add event listeners for menu actions
+    // Add event listeners for menu actions and session switching
     menu.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      const button = target.closest('.profile-menu-action') as HTMLElement;
+      const button = target.closest('.profile-menu-action, .profile-menu-account') as HTMLElement;
       if (!button) return;
       
       const action = button.getAttribute('data-action');
-      if (action && this.onMenuAction) {
+      
+      if (action === 'switch-to-session') {
+        const sessionToken = button.getAttribute('data-session-token');
+        if (sessionToken) {
+          this.switchToSession(sessionToken);
+        }
+      } else if (action === 'add-account') {
+        this.addAccount();
+      } else if (action && this.onMenuAction) {
         this.onMenuAction(action);
       }
     });
@@ -892,7 +1012,51 @@ class CommunityNavigationUI {
     }
   }
 
+  private getSessionTypeLabel(session: any): string {
+    if (session.isAnonymous) {
+      return 'Anonymous';
+    }
+    if (session.identityType === 'ens') {
+      return `ENS: ${session.ensDomain || 'N/A'}`;
+    }
+    if (session.identityType === 'universal_profile') {
+      return `UP: ${session.upAddress || 'N/A'}`;
+    }
+    return 'User Account';
+  }
 
+  /**
+   * Switch to a different active session
+   */
+  private async switchToSession(sessionToken: string): Promise<void> {
+    try {
+      console.log('[CommunityNavigationUI] Switching to session:', sessionToken);
+      
+      // Use SessionManager to switch active session
+      await sessionManager.setActiveSession(sessionToken);
+      
+      console.log('[CommunityNavigationUI] ✅ Session switched successfully');
+      
+      // Notify parent about session change (this will trigger UI updates)
+      if (this.onMenuAction) {
+        this.onMenuAction('session-switched');
+      }
+      
+    } catch (error) {
+      console.error('[CommunityNavigationUI] Failed to switch session:', error);
+    }
+  }
+
+  /**
+   * Add a new account: Open auth iframe
+   */
+  private addAccount(): void {
+    console.log('[CommunityNavigationUI] Adding new account - opening auth iframe');
+    // This will trigger the initializeAuthPhase logic, which will handle the auth flow
+    // and then call handleAuthCompletion, which will re-render the menu with the new session.
+    // No need to call initializeCommunityNavigation here, as it's only for multiple communities.
+    // The add-account button is a direct action to add a new session.
+  }
 }
 
 /**
@@ -971,6 +1135,7 @@ export class InternalPluginHost {
     });
     
     this.setupMessageListener();
+    this.setupCrossTabSessionListener();
     this.initializeAuthPhase();
   }
 
@@ -1428,6 +1593,42 @@ export class InternalPluginHost {
   }
 
   /**
+   * Setup cross-tab session change listener (simple approach)
+   */
+  private setupCrossTabSessionListener(): void {
+    // Listen for SessionManager's cross-tab sync events
+    window.addEventListener('curia-session-change', () => {
+      console.log('[InternalPluginHost] Cross-tab session change detected, updating UI');
+      
+      // Simple approach: Force iframe reload on any cross-tab session change
+      if (this.currentIframe) {
+        console.log('[InternalPluginHost] Reloading iframe due to cross-tab session change');
+        const currentSrc = this.currentIframe.src;
+        this.currentIframe.src = currentSrc;
+      }
+      
+      // Update user profile from new active session
+      const activeSession = sessionManager.getActiveSession();
+      if (activeSession && this.userProfile) {
+        this.userProfile = {
+          userId: activeSession.userId,
+          name: activeSession.name || 'Anonymous User',
+          profilePictureUrl: activeSession.profileImageUrl || null,
+          identityType: activeSession.identityType,
+          walletAddress: activeSession.walletAddress || null,
+          ensDomain: activeSession.ensName || null,
+          upAddress: activeSession.upAddress || null,
+          isAnonymous: activeSession.identityType === 'anonymous',
+        };
+      }
+      
+      console.log('[InternalPluginHost] ✅ Cross-tab session change handled');
+    });
+    
+    console.log('[InternalPluginHost] ✅ Cross-tab session listener setup (simple approach)');
+  }
+
+  /**
    * Cleanup when embed is destroyed
    */
   public destroy(): void {
@@ -1465,14 +1666,79 @@ export class InternalPluginHost {
       case 'sign-out':
         this.signOut();
         break;
-      case 'switch-account':
-        this.switchAccount();
+      case 'session-switched':
+        this.handleSessionSwitch();
         break;
       case 'settings':
         this.openSettings();
         break;
+      case 'add-account':
+        this.addAccount();
+        break;
       default:
         console.log('[InternalPluginHost] Unknown menu action:', action);
+    }
+  }
+
+  /**
+   * Handle session switch: Update user profile and refresh UI
+   */
+  private async handleSessionSwitch(): Promise<void> {
+    console.log('[InternalPluginHost] Handling session switch - updating user profile');
+    
+    try {
+      // Get the new active session
+      const activeSession = sessionManager.getActiveSession();
+      if (!activeSession) {
+        console.log('[InternalPluginHost] No active session after switch, resetting to auth');
+        this.resetToInitialState();
+        return;
+      }
+
+      // Update user profile from session
+      this.userProfile = {
+        userId: activeSession.userId,
+        name: activeSession.name || 'Anonymous User',
+        profilePictureUrl: activeSession.profileImageUrl || null,
+        identityType: activeSession.identityType,
+        walletAddress: activeSession.walletAddress || null,
+        ensDomain: activeSession.ensName || null,
+        upAddress: activeSession.upAddress || null,
+        isAnonymous: activeSession.identityType === 'anonymous',
+      };
+
+      // Refresh community navigation with new user profile
+      if (this.communityNavigation) {
+        this.communityNavigation = new CommunityNavigationUI(
+          this.userCommunities,
+          this.authContext?.communityId || '',
+          this.userProfile,
+          (action: string) => this.handleMenuAction(action)
+        );
+        
+        // Re-render the navigation
+        const existingNav = this.embedContainer?.querySelector('.curia-community-nav');
+        if (existingNav) {
+          const newNav = this.communityNavigation.render();
+          existingNav.replaceWith(newNav);
+        }
+      }
+
+      // ✅ OPTION A: Force iframe reload to prevent crashes from session hot-swap
+      if (this.currentIframe) {
+        console.log('[InternalPluginHost] Forcing iframe reload due to session switch');
+        
+        // Simple force reload - just reset the src to trigger fresh load
+        const currentSrc = this.currentIframe.src;
+        this.currentIframe.src = currentSrc;
+        
+        console.log('[InternalPluginHost] ✅ Iframe reloaded with new session context');
+      }
+
+      console.log('[InternalPluginHost] ✅ Session switch completed, UI updated');
+      
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to handle session switch:', error);
     }
   }
 
@@ -1485,19 +1751,22 @@ export class InternalPluginHost {
   }
 
   /**
-   * Switch account: Complete reset to initial state
-   */
-  private switchAccount(): void {
-    console.log('[InternalPluginHost] Switching account - performing complete reset');
-    this.resetToInitialState();
-  }
-
-  /**
    * Open settings: Placeholder for future implementation
    */
   private openSettings(): void {
     console.log('[InternalPluginHost] Opening settings (placeholder)');
     // TODO: Implement settings modal or navigation
+  }
+
+  /**
+   * Add a new account: Open auth iframe
+   */
+  private addAccount(): void {
+    console.log('[InternalPluginHost] Adding new account - opening auth iframe');
+    // This will trigger the initializeAuthPhase logic, which will handle the auth flow
+    // and then call handleAuthCompletion, which will re-render the menu with the new session.
+    // No need to call initializeCommunityNavigation here, as it's only for multiple communities.
+    // The add-account button is a direct action to add a new session.
   }
 
   /**

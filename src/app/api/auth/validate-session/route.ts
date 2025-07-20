@@ -82,6 +82,9 @@ export async function POST(request: NextRequest) {
       [sessionData.id]
     );
 
+    // 🔧 TEMPORARY FIX: Disable aggressive token rotation to prevent 401 issues on reload
+    // TODO: Implement smarter rotation (only rotate after 24h or on security events)
+    /*
     // Generate new session token for security (optional rotation)
     const newSessionToken = generateSessionToken();
     const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -90,6 +93,11 @@ export async function POST(request: NextRequest) {
       'UPDATE authentication_sessions SET session_token = $1, expires_at = $2 WHERE id = $3',
       [newSessionToken, newExpiresAt, sessionData.id]
     );
+    */
+
+    // Use original token instead of rotating
+    const responseToken = sessionData.session_token;
+    const responseExpiresAt = new Date(sessionData.expires_at);
 
     // Prepare response data
     const responseData = {
@@ -103,8 +111,8 @@ export async function POST(request: NextRequest) {
         up_address: sessionData.up_address,
         is_anonymous: sessionData.is_anonymous
       },
-      token: newSessionToken,
-      expiresAt: newExpiresAt.toISOString(),
+      token: responseToken,
+      expiresAt: responseExpiresAt.toISOString(),
       isValid: true
     };
 

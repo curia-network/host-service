@@ -4,6 +4,8 @@
  * This class embeds all ClientPluginHost functionality directly into the embed script,
  * making it completely self-contained so customers don't need to implement any logic.
  * 
+ * Updated to use SessionManager instead of localStorage for session management.
+ * 
  * Responsibilities:
  * 1. Handle auth completion from embed iframe
  * 2. Manage iframe switching (auth → forum)
@@ -13,6 +15,7 @@
 
 import { EmbedConfig } from '../types/EmbedTypes';
 import { ApiProxyClient } from '@curia_/iframe-api-proxy';
+import { sessionManager } from '../../SessionManager';
 
 /**
  * Authentication context for API requests
@@ -1514,8 +1517,15 @@ export class InternalPluginHost {
     this.authContext = null;
     this.currentIframe = null;
     
-    // 3. Clear session storage
-    localStorage.removeItem('curia_session_token');
+    // 3. Clear session using SessionManager instead of localStorage
+    try {
+      sessionManager.removeActiveSession().catch(error => {
+        console.error('[InternalPluginHost] Failed to clear session via SessionManager:', error);
+      });
+      console.log('[InternalPluginHost] ✅ Session cleared via SessionManager');
+    } catch (error) {
+      console.error('[InternalPluginHost] SessionManager clear error:', error);
+    }
     
     // 4. Recreate clean auth iframe
     this.container.innerHTML = '';

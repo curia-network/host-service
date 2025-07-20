@@ -1,4 +1,11 @@
+/**
+ * useCommunities - Hook for fetching user communities
+ * 
+ * Updated to use SessionManager for token management while maintaining API compatibility.
+ */
+
 import { useQuery } from '@tanstack/react-query';
+import { sessionManager } from '@/lib/SessionManager';
 
 interface Community {
   id: string;
@@ -31,9 +38,9 @@ export function useCommunities(isAuthenticated: boolean) {
         'Content-Type': 'application/json',
       };
 
-      // Add auth header if available
+      // Use SessionManager instead of localStorage for token access
       if (typeof window !== 'undefined' && isAuthenticated) {
-        const token = localStorage.getItem('curia_session_token');
+        const token = sessionManager.getActiveToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }

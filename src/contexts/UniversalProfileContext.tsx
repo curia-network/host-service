@@ -6,8 +6,8 @@
  * connection state, provides the connected address, and exposes functions
  * for common operations like fetching balances.
  *
- * It manually handles event listeners for account and chain changes to ensure
- * a stable and predictable state for consuming components.
+ * Updated to use SessionManager for UP address persistence instead of localStorage.
+ * The context now focuses purely on wallet connection state without data persistence.
  */
 import React, {
   createContext,
@@ -21,6 +21,7 @@ import React, {
 import { ethers } from 'ethers';
 import { ERC725 } from '@erc725/erc725.js';
 import LSP4DigitalAssetSchema from '@erc725/erc725.js/schemas/LSP4DigitalAsset.json';
+import { sessionManager } from '@/lib/SessionManager';
 
 // ===== INTERFACES =====
 
@@ -56,19 +57,46 @@ export const UniversalProfileProvider: React.FC<{ children: ReactNode }> = ({ ch
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [hasCheckedExistingConnection, setHasCheckedExistingConnection] = useState(false);
 
+  // One-time migration from legacy localStorage upAddress to SessionManager
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const legacyUpAddress = localStorage.getItem('upAddress');
+      if (legacyUpAddress) {
+        console.log('[UniversalProfileContext] Migrating legacy upAddress from localStorage to SessionManager');
+        
+        // Check if current active session is UP type and update if needed
+        const activeSession = sessionManager.getActiveSession();
+        if (activeSession?.identityType === 'universal_profile' && !activeSession.upAddress) {
+          // Update active UP session with migrated address
+          sessionManager.addSession({
+            ...activeSession,
+            upAddress: legacyUpAddress,
+          }).catch(error => {
+            console.error('[UniversalProfileContext] Failed to migrate upAddress to session:', error);
+          });
+        }
+        
+        // Clean up legacy localStorage
+        localStorage.removeItem('upAddress');
+        console.log('[UniversalProfileContext] ✅ Legacy upAddress migrated and localStorage cleaned up');
+      }
+    }
+  }, []);
+
   const disconnect = useCallback(() => {
     setUpAddress(null);
     setProvider(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('upAddress');
-    }
+    // Note: No longer managing localStorage - SessionManager handles persistence
+    console.log('[UniversalProfileContext] Wallet disconnected from context');
   }, []);
 
   const handleAccountsChanged = useCallback((accounts: string[]) => {
     if (accounts.length === 0) {
       disconnect();
     } else {
-      setUpAddress(ethers.utils.getAddress(accounts[0]));
+      const address = ethers.utils.getAddress(accounts[0]);
+      setUpAddress(address);
+      console.log('[UniversalProfileContext] Account changed to:', address);
     }
   }, [disconnect]);
 
@@ -88,12 +116,16 @@ export const UniversalProfileProvider: React.FC<{ children: ReactNode }> = ({ ch
         const address = ethers.utils.getAddress(accounts[0]);
         setProvider(web3Provider);
         setUpAddress(address);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('upAddress', address);
+        console.log('[UniversalProfileContext] ✅ Existing UP connection found:', address);
+        
+        // Check if this matches current active session UP address
+        const activeSession = sessionManager.getActiveSession();
+        if (activeSession?.identityType === 'universal_profile' && activeSession.upAddress === address) {
+          console.log('[UniversalProfileContext] ✅ UP address matches active session');
         }
       }
     } catch (error) {
-      console.error('Error checking existing UP connection:', error);
+      console.error('[UniversalProfileContext] Error checking existing UP connection:', error);
     } finally {
       setIsConnecting(false);
       setHasCheckedExistingConnection(true);
@@ -119,11 +151,12 @@ export const UniversalProfileProvider: React.FC<{ children: ReactNode }> = ({ ch
       const checksummedAddress = ethers.utils.getAddress(address);
       setProvider(web3Provider);
       setUpAddress(checksummedAddress);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('upAddress', checksummedAddress);
-      }
+      console.log('[UniversalProfileContext] ✅ UP connected:', checksummedAddress);
+      
+      // Note: UP address persistence is now handled by SessionManager during authentication,
+      // not by this context. This context only manages wallet connection state.
     } catch (error) {
-      console.error('Failed to connect to Universal Profile:', error);
+      console.error('[UniversalProfileContext] Failed to connect to Universal Profile:', error);
       disconnect();
     } finally {
       setIsConnecting(false);

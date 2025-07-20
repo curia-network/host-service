@@ -1,7 +1,8 @@
 /**
  * SignatureVerificationStep - Wallet signature verification
  * 
- * Now uses real wallet signature integration with proven context hooks
+ * Now uses real wallet signature integration with proven context hooks.
+ * Updated to use SessionManager instead of localStorage for session storage.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,6 +14,7 @@ import { Shield, CheckCircle2, Edit3, ArrowRight, AlertCircle } from 'lucide-rea
 import { SignatureVerificationStepProps, ProfileData } from '@/types/embed';
 import { UniversalProfileProvider, useUniversalProfile } from '@/contexts/UniversalProfileContext';
 import { EthereumProfileProvider, useEthereumProfile } from '@/contexts/EthereumProfileContext';
+import { sessionManager } from '@/lib/SessionManager';
 
 // Internal component with access to proven wallet contexts
 const SignatureVerificationContent: React.FC<SignatureVerificationStepProps> = ({ 
@@ -123,37 +125,52 @@ const SignatureVerificationContent: React.FC<SignatureVerificationStepProps> = (
 
       setProgress(75);
 
-      if (verifyResponse.ok) {
-        const { user, token: sessionToken } = await verifyResponse.json();
-        console.log('[SignatureVerification] ✅ Signature verified successfully:', user);
-        
-        // Store session token
-        if (sessionToken) {
-          localStorage.setItem('curia_session_token', sessionToken);
-        }
-
-        // 🎯 CRITICAL FIX: Update ProfileData with database user information
-        const updatedProfileData: ProfileData = {
-          ...profileData,
-          userId: user.user_id,  // Add database user ID
-          name: user.name || profileData.name,  // Use database name if available
-          avatar: user.profile_picture_url || profileData.avatar,  // Use database avatar if available
-          sessionToken,
-          verificationLevel: 'verified' as const
-        };
-        
-        console.log('[SignatureVerification] ✅ ProfileData updated with database user info:', updatedProfileData);
-
-        setProgress(100);
-        setVerificationStatus('complete');
-        
-        // Wait a moment to show success, then continue with updated ProfileData
-        setTimeout(() => {
-          onSignatureComplete(updatedProfileData);
-        }, 1000);
-      } else {
+      if (!verifyResponse.ok) {
         throw new Error(`Signature verification failed: ${verifyResponse.statusText}`);
       }
+
+      const { user, token: sessionToken } = await verifyResponse.json();
+      console.log('[SignatureVerification] ✅ Signature verified successfully:', user);
+      
+      // Create proper session with SessionManager instead of localStorage
+      if (sessionToken) {
+        console.log('[SignatureVerification] Creating session in SessionManager');
+        
+        await sessionManager.addSession({
+          sessionToken,
+          userId: user.user_id,
+          identityType: profileData.type === 'ens' ? 'ens' : 'universal_profile',
+          walletAddress: profileData.address,
+          ensName: profileData.type === 'ens' ? profileData.domain : undefined,
+          upAddress: profileData.type === 'universal_profile' ? profileData.address : undefined,
+          name: user.name || profileData.name,
+          profileImageUrl: user.profile_picture_url || profileData.avatar,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          isActive: true,
+        });
+
+        console.log('[SignatureVerification] ✅ Session created in SessionManager');
+      }
+
+      // 🎯 CRITICAL FIX: Update ProfileData with database user information
+      const updatedProfileData: ProfileData = {
+        ...profileData,
+        userId: user.user_id,  // Add database user ID
+        name: user.name || profileData.name,  // Use database name if available
+        avatar: user.profile_picture_url || profileData.avatar,  // Use database avatar if available
+        sessionToken,
+        verificationLevel: 'verified' as const
+      };
+      
+      console.log('[SignatureVerification] ✅ ProfileData updated with database user info:', updatedProfileData);
+
+      setProgress(100);
+      setVerificationStatus('complete');
+      
+      // Wait a moment to show success, then continue with updated ProfileData
+      setTimeout(() => {
+        onSignatureComplete(updatedProfileData);
+      }, 1000);
       
     } catch (error) {
       console.error('[SignatureVerification] Error:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ export function SearchCommunitiesModal({
 }: SearchCommunitiesModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: communitiesData, isLoading } = useCommunities(false); // Always fetch all public communities
-
+  
   const allCommunities = [
     ...(communitiesData?.userCommunities || []),
     ...(communitiesData?.availableCommunities || [])

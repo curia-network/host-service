@@ -5,6 +5,8 @@
  * - ENS: EthereumProfileProvider + RainbowKit + window.ethereum
  * - UP: UniversalProfileProvider + window.lukso + ethers.js
  * - Anonymous: Direct backend integration
+ * 
+ * Updated to use SessionManager instead of localStorage for session storage.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -17,6 +19,7 @@ import { UniversalProfileProvider, useUniversalProfile } from '@/contexts/Univer
 import { EthereumProfileProvider, useEthereumProfile } from '@/contexts/EthereumProfileContext';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Image from 'next/image';
+import { sessionManager } from '@/lib/SessionManager';
 
 // Separate component for Universal Profile connection
 const UniversalProfileConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSuccess }) => {
@@ -129,24 +132,38 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
           body: JSON.stringify({ origin: window.location.origin })
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem('curia_session_token', data.token);
-          
-          setTimeout(() => {
-            handleConnectionSuccess({
-              type: 'anonymous',
-              name: data.user.name,
-              userId: data.user.user_id,  // ← Fix: Include database user ID
-              sessionToken: data.token,   // ← Fix: Include session token
-              verificationLevel: 'unverified' as const
-            });
-          }, 1000);
-        } else {
-          throw new Error('Anonymous authentication failed');
+        if (!response.ok) {
+          throw new Error(`Anonymous authentication failed: ${response.status}`);
         }
+
+        const data = await response.json();
+        
+        console.log('[AuthenticationStep] Anonymous auth successful, creating session');
+        
+        // Create proper session with SessionManager instead of localStorage
+        await sessionManager.addSession({
+          sessionToken: data.token,
+          userId: data.user.user_id,
+          identityType: 'anonymous',
+          name: data.user.name,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          isActive: true,
+        });
+
+        console.log('[AuthenticationStep] ✅ Anonymous session created in SessionManager');
+        
+        setTimeout(() => {
+          handleConnectionSuccess({
+            type: 'anonymous',
+            name: data.user.name,
+            userId: data.user.user_id,
+            sessionToken: data.token,
+            verificationLevel: 'unverified' as const
+          });
+        }, 1000);
+        
       } catch (error) {
-        console.error(`[Embed] Anonymous authentication error:`, error);
+        console.error('[AuthenticationStep] Anonymous authentication error:', error);
         setIsAuthenticating(null);
       }
     } else {

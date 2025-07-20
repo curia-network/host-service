@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building, Check, X } from 'lucide-react';
+import { sessionManager } from '@/lib/SessionManager';
 
 interface Community {
   id: string;
@@ -53,7 +54,13 @@ export function CreateCommunityModal({
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('curia_session_token');
+      // Use SessionManager instead of localStorage for token access
+      const token = sessionManager.getActiveToken();
+      
+      if (!token) {
+        throw new Error('You must be authenticated to create a community');
+      }
+      
       const response = await fetch('/api/communities', {
         method: 'POST',
         headers: {

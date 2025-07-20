@@ -31,6 +31,7 @@ import {
 import { EmbedTopBar } from '@/components/embed/EmbedTopBar';
 import { EmbedConfig, EmbedStep, ProfileData } from '@/types/embed';
 import { ApiProxyServer } from '@curia_/iframe-api-proxy';
+import { sessionManager } from '@/lib/SessionManager';
 
 // API Proxy Server Component - runs in background to handle proxied requests
 const ApiProxyServerComponent: React.FC = () => {
@@ -142,7 +143,7 @@ const EmbedContent: React.FC = () => {
         domain: userData.ens_domain,
         avatar: userData.profile_picture_url,
         verificationLevel: userData.identity_type === 'anonymous' ? 'unverified' : 'verified',
-        sessionToken: localStorage.getItem('curia_session_token') || undefined,
+        sessionToken: sessionManager.getActiveToken() || undefined,
         // Store the actual database user_id for later use
         userId: userData.user_id
       };

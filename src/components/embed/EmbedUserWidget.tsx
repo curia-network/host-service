@@ -3,6 +3,8 @@
  * 
  * Displays current user info in top-right corner of embed with ability
  * to disconnect/clear session and start fresh authentication.
+ * 
+ * Updated to use SessionManager instead of localStorage for logout.
  */
 
 import React from 'react';
@@ -10,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, User, Crown, Globe, Zap } from 'lucide-react';
 import { ProfileData } from '@/types/embed';
 import Image from 'next/image';
+import { sessionManager } from '@/lib/SessionManager';
 
 interface EmbedUserWidgetProps {
   profileData: ProfileData | null;
@@ -22,12 +25,22 @@ export function EmbedUserWidget({ profileData, onDisconnect }: EmbedUserWidgetPr
     return null;
   }
 
-  const handleDisconnect = () => {
-    // Clear session storage
-    localStorage.removeItem('curia_session_token');
-    
-    // Call parent disconnect handler
-    onDisconnect();
+  const handleDisconnect = async () => {
+    try {
+      // Clear session using SessionManager instead of localStorage
+      console.log('[EmbedUserWidget] Logging out user...');
+      await sessionManager.removeActiveSession();
+      console.log('[EmbedUserWidget] ✅ Session cleared via SessionManager');
+      
+      // Call parent disconnect handler
+      onDisconnect();
+    } catch (error) {
+      console.error('[EmbedUserWidget] Logout error:', error);
+      
+      // Still call onDisconnect even if SessionManager fails
+      // This ensures the UI updates properly
+      onDisconnect();
+    }
   };
 
   // Get user type icon

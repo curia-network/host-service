@@ -12,6 +12,7 @@ import { Footer } from '@/components/landing/Footer';
 import { ArrowLeft, Settings, Code, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
+import { sessionManager } from '@/lib/SessionManager';
 
 export interface EmbedConfig {
   width: string;
@@ -49,7 +50,7 @@ export function GetStartedPageClient() {
 
   // Listen for auth completion from embedded auth-only modal
   useEffect(() => {
-    const handleAuthComplete = (event: MessageEvent) => {
+    const handleAuthComplete = async (event: MessageEvent) => {
       if (event.data?.type === 'curia-auth-complete' && (event.data?.mode === 'auth-only' || event.data?.mode === 'secure-auth')) {
         const { sessionToken, userId, communityId } = event.data;
         
@@ -60,9 +61,21 @@ export function GetStartedPageClient() {
           mode: event.data.mode
         });
         
-        // Store the session token
+        // Store the session token using SessionManager
         if (sessionToken) {
-          localStorage.setItem('curia_session_token', sessionToken);
+          try {
+            // Create a basic session - the SessionManager will handle migration if needed
+            await sessionManager.addSession({
+              sessionToken,
+              userId: userId || 'unknown', // Will be updated by database sync
+              identityType: 'anonymous', // Will be updated by database sync
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+              isActive: true,
+            });
+            console.log('[GetStartedPageClient] ✅ Session stored via SessionManager');
+          } catch (error) {
+            console.error('[GetStartedPageClient] Failed to store session:', error);
+          }
         }
         
         // Handle different community selection scenarios
@@ -89,8 +102,15 @@ export function GetStartedPageClient() {
   const handleAuthRequired = (mode: string = 'auth-only') => {
     console.log('[GetStartedPageClient] Auth required, mode:', mode);
     
-    // Clear any existing auth state
-    localStorage.removeItem('curia_session_token');
+    // Clear any existing auth state using SessionManager
+    try {
+      sessionManager.removeActiveSession().catch(error => {
+        console.error('[GetStartedPageClient] Failed to clear session:', error);
+      });
+      console.log('[GetStartedPageClient] ✅ Session cleared via SessionManager');
+    } catch (error) {
+      console.error('[GetStartedPageClient] SessionManager clear error:', error);
+    }
     
     // Determine the embed URL based on mode
     const embedUrl = mode === 'secure-auth' 

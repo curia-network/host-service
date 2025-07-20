@@ -24,6 +24,7 @@ import {
 import { getUPSocialProfile, UPSocialProfile } from '../../lib/upProfile';
 import { lsp26Registry, LSP26Stats } from '../../lib/lsp26';
 import { useTheme } from '@/contexts/ThemeContext';
+import { sessionManager } from '@/lib/SessionManager';
 
 // TypeScript declarations for Universal Profile extension
 declare global {
@@ -251,9 +252,22 @@ export const UPProfileDisplay: React.FC<UPProfileDisplayProps> = ({
       const { user, token, expiresAt } = await verifyResponse.json();
       console.log('[UPProfileDisplay] ✅ Authentication complete!', { user, token });
       
-      // Store session token
+      // Create proper session with SessionManager instead of localStorage
       if (token) {
-        localStorage.setItem('curia_session_token', token);
+        console.log('[UPProfileDisplay] Creating UP session in SessionManager');
+        
+        await sessionManager.addSession({
+          sessionToken: token,
+          userId: user.user_id,
+          identityType: 'universal_profile',
+          upAddress: address,
+          name: user.name || profile.displayName,
+          profileImageUrl: user.profile_picture_url || profile.profileImage,
+          expiresAt: new Date(expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000), // Use server expiry or 30 days
+          isActive: true,
+        });
+
+        console.log('[UPProfileDisplay] ✅ UP session created in SessionManager');
       }
 
       // 🎯 CRITICAL FIX: Create updated ProfileData with database user information

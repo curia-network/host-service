@@ -24,6 +24,7 @@ import {
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useDisconnect, useAccount, useSignMessage } from 'wagmi';
 import { useTheme } from '@/contexts/ThemeContext';
+import { sessionManager } from '@/lib/SessionManager';
 
 // ===== TYPES =====
 
@@ -281,9 +282,23 @@ export const EthereumProfileDisplay: React.FC<EthereumProfileDisplayProps> = ({
       const { user, token, expiresAt } = await verifyResponse.json();
       console.log('[EthereumProfileDisplay] ✅ Authentication complete!', { user, token });
       
-      // Store session token
+      // Create proper session with SessionManager instead of localStorage
       if (token) {
-        localStorage.setItem('curia_session_token', token);
+        console.log('[EthereumProfileDisplay] Creating ENS session in SessionManager');
+        
+        await sessionManager.addSession({
+          sessionToken: token,
+          userId: user.user_id,
+          identityType: 'ens',
+          walletAddress: connectedAddress,
+          ensName: efpProfile?.ensName || ensName,
+          name: user.name || efpProfile?.ensName || ensName,
+          profileImageUrl: user.profile_picture_url || efpProfile?.avatar || ensAvatar,
+          expiresAt: new Date(expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000), // Use server expiry or 30 days
+          isActive: true,
+        });
+
+        console.log('[EthereumProfileDisplay] ✅ ENS session created in SessionManager');
       }
 
       // 🎯 CRITICAL FIX: Create updated ProfileData with database user information

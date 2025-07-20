@@ -1,84 +1,128 @@
-import { useState, useEffect } from 'react';
+/**
+ * useAuth - Clean authentication hook powered by SessionManager
+ * 
+ * Replaces the old localStorage patching chaos with clean SessionManager delegation.
+ * Maintains backward compatibility for existing components.
+ */
+
+import { useAuth as useSessionManagerAuth } from './useSessionManager';
+import { sessionManager } from '../lib/SessionManager';
+
+// ============================================================================
+// MAIN AUTH HOOK (BACKWARD COMPATIBLE)
+// ============================================================================
 
 interface AuthState {
   isAuthenticated: boolean;
   token: string | null;
 }
 
+/**
+ * Clean auth hook that delegates to SessionManager
+ * Maintains the same API as the old useAuth for backward compatibility
+ */
 export function useAuth(): AuthState {
-  const [state, setState] = useState<AuthState>({
-    isAuthenticated: false,
-    token: null
-  });
-
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('curia_session_token');
-      setState({
-        isAuthenticated: !!token,
-        token: token
-      });
-    };
-
-    // Check on mount
-    checkAuth();
-
-    // Listen for localStorage changes (for post-auth flow)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'curia_session_token') {
-        checkAuth();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Also listen for manual localStorage changes in same tab
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function(key, value) {
-      const result = originalSetItem.call(this, key, value);
-      if (key === 'curia_session_token') {
-        checkAuth();
-      }
-      return result;
-    };
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      localStorage.setItem = originalSetItem;
-    };
-  }, []);
-
-  return state;
+  const { isAuthenticated, token } = useSessionManagerAuth();
+  
+  return {
+    isAuthenticated,
+    token,
+  };
 }
 
-// Separate function for identity validation when needed
+// ============================================================================
+// IDENTITY VALIDATION (UPDATED FOR SESSIONMANAGER)
+// ============================================================================
+
+/**
+ * Validate user identity for community creation
+ * Updated to use SessionManager instead of direct localStorage access
+ */
 export async function validateIdentityForCommunityCreation(): Promise<boolean> {
   try {
-    const token = localStorage.getItem('curia_session_token');
-    if (!token) return false;
+    const activeSession = sessionManager.getActiveSession();
+    if (!activeSession) {
+      console.log('[validateIdentityForCommunityCreation] No active session');
+      return false;
+    }
 
+    // Check if user already has the required identity type
+    const hasValidIdentity = activeSession.identityType === 'ens' || activeSession.identityType === 'universal_profile';
+    
+    if (hasValidIdentity) {
+      console.log('[validateIdentityForCommunityCreation] ✅ Valid identity type:', activeSession.identityType);
+      return true;
+    }
+
+    // If anonymous user, we need to validate with the server
+    console.log('[validateIdentityForCommunityCreation] Validating session with server...');
+    
     const response = await fetch('/api/auth/validate-session', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ sessionToken: token }),
+      body: JSON.stringify({ sessionToken: activeSession.sessionToken }),
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      // Update token if rotated
-      if (data.token !== token) {
-        localStorage.setItem('curia_session_token', data.token);
-      }
+    if (!response.ok) {
+      console.log('[validateIdentityForCommunityCreation] ❌ Session validation failed');
+      return false;
+    }
+
+    const data = await response.json();
+    
+    // Handle token rotation if the server returned a new token
+    if (data.token && data.token !== activeSession.sessionToken) {
+      console.log('[validateIdentityForCommunityCreation] 🔄 Token rotated, updating session');
       
-      // Only ENS and Universal Profile users can create communities
-      return data.user.identity_type === 'ens' || data.user.identity_type === 'universal_profile';
+      try {
+        // Update session with new token
+        await sessionManager.addSession({
+          ...activeSession,
+          sessionToken: data.token,
+        });
+        
+        // Remove old session
+        await sessionManager.removeSession(activeSession.sessionToken);
+      } catch (error) {
+        console.error('[validateIdentityForCommunityCreation] Failed to handle token rotation:', error);
+        // Continue with validation even if token rotation failed
+      }
     }
     
-    return false;
+    // Check if the validated user has the required identity type
+    const isValidIdentity = data.user.identity_type === 'ens' || data.user.identity_type === 'universal_profile';
+    
+    if (isValidIdentity) {
+      console.log('[validateIdentityForCommunityCreation] ✅ Server confirmed valid identity:', data.user.identity_type);
+    } else {
+      console.log('[validateIdentityForCommunityCreation] ❌ Invalid identity type:', data.user.identity_type);
+    }
+    
+    return isValidIdentity;
+    
   } catch (error) {
-    console.error('Identity validation error:', error);
+    console.error('[validateIdentityForCommunityCreation] Validation error:', error);
     return false;
   }
+}
+
+// ============================================================================
+// LEGACY COMPATIBILITY HELPERS
+// ============================================================================
+
+/**
+ * @deprecated This was the old interface. Components should migrate to useAuth() or useSessionManager()
+ */
+export interface LegacyAuthState {
+  isAuthenticated: boolean;
+  token: string | null;
+}
+
+/**
+ * @deprecated Use useAuth() instead. This is kept for any remaining legacy components.
+ */
+export function useLegacyAuth(): LegacyAuthState {
+  return useAuth();
 } 

@@ -1,5 +1,7 @@
 /**
  * CommunitySelectionStep - Community selection and joining
+ * 
+ * Updated to use SessionManager instead of localStorage fallback.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -12,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { CommunitySelectionStepProps } from '@/types/embed';
 import { Community } from '@/types/embed';
 import { toast } from 'sonner';
+import { sessionManager } from '@/lib/SessionManager';
 
 export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({ 
   onCommunitySelected, 
@@ -75,8 +78,8 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
         setIsLoading(true);
         setError(null);
         
-        // Get session token from prop or localStorage as fallback
-        const token = sessionToken || localStorage.getItem('curia_session_token');
+        // Use session token from prop or SessionManager (no localStorage fallback)
+        const token = sessionToken || sessionManager.getActiveToken();
         
         // Prepare headers with authentication if available
         const headers: HeadersInit = {
@@ -86,6 +89,8 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
           console.log('[CommunitySelectionStep] Using session token for authenticated request');
+        } else {
+          console.log('[CommunitySelectionStep] No session token available, proceeding as guest');
         }
         
         const response = await fetch('/api/communities', { headers });

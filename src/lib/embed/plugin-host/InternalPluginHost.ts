@@ -37,16 +37,32 @@ export interface UserCommunityMembership {
 }
 
 /**
+ * User profile information from authentication
+ */
+export interface UserProfile {
+  userId: string;
+  name: string;
+  profilePictureUrl: string | null;
+  identityType: 'ens' | 'universal_profile' | 'anonymous';
+  walletAddress: string | null;
+  ensDomain: string | null;
+  upAddress: string | null;
+  isAnonymous: boolean;
+}
+
+/**
  * Beautiful Discord-style community navigation sidebar
  */
 class CommunityNavigationUI {
   private communities: UserCommunityMembership[];
   private currentCommunityId: string;
+  private userProfile: UserProfile | null;
   private container: HTMLElement | null = null;
 
-  constructor(communities: UserCommunityMembership[], currentCommunityId: string) {
+  constructor(communities: UserCommunityMembership[], currentCommunityId: string, userProfile: UserProfile | null) {
     this.communities = communities;
     this.currentCommunityId = currentCommunityId;
+    this.userProfile = userProfile;
   }
 
   render(): HTMLElement {
@@ -118,11 +134,9 @@ class CommunityNavigationUI {
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
       
-      /* Preview card styling */
+      /* Preview card styling - Portal pattern for document-level rendering */
       .community-preview {
-        position: absolute;
-        left: 88px;
-        top: 0;
+        position: fixed;
         min-width: 220px;
         max-width: 280px;
         background: var(--preview-bg);
@@ -130,9 +144,9 @@ class CommunityNavigationUI {
         border-radius: 12px;
         padding: 16px;
         box-shadow: 
-          0 10px 25px rgba(0, 0, 0, 0.1),
-          0 4px 12px rgba(0, 0, 0, 0.08);
-        z-index: 1000;
+          0 20px 40px rgba(0, 0, 0, 0.15),
+          0 8px 16px rgba(0, 0, 0, 0.1);
+        z-index: 999999;
         opacity: 0;
         transform: translateX(-8px) scale(0.95);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -190,16 +204,145 @@ class CommunityNavigationUI {
         display: flex;
         align-items: center;
         gap: 6px;
-        color: var(--preview-text-muted);
-        font-size: 13px;
-      }
-    `;
-    document.head.appendChild(globalStyles);
+                 color: var(--preview-text-muted);
+         font-size: 13px;
+       }
+
+       /* User profile section styling */
+       .user-profile-section {
+         margin-top: auto;
+         padding-top: 16px;
+         border-top: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
+       }
+
+       .user-profile-avatar {
+         width: 48px;
+         height: 48px;
+         border-radius: 12px;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         cursor: pointer;
+         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+         position: relative;
+         overflow: hidden;
+         user-select: none;
+         border: 2px solid transparent;
+         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+       }
+
+       .user-profile-avatar:hover {
+         transform: scale(1.08) translateY(-1px);
+         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+       }
+
+       /* Profile menu styling - Portal pattern */
+       .user-profile-menu {
+         position: fixed;
+         min-width: 280px;
+         max-width: 320px;
+         background: var(--preview-bg);
+         border: 1px solid var(--preview-border);
+         border-radius: 12px;
+         padding: 16px;
+         box-shadow: 
+           0 20px 40px rgba(0, 0, 0, 0.15),
+           0 8px 16px rgba(0, 0, 0, 0.1);
+         z-index: 999999;
+         opacity: 0;
+         transform: translateX(-8px) scale(0.95);
+         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+         pointer-events: none;
+         backdrop-filter: blur(12px);
+       }
+
+       .user-profile-menu.show {
+         opacity: 1;
+         transform: translateX(0) scale(1);
+       }
+
+       .profile-menu-header {
+         display: flex;
+         align-items: center;
+         gap: 12px;
+         margin-bottom: 16px;
+         padding-bottom: 16px;
+         border-bottom: 1px solid var(--preview-border);
+       }
+
+       .profile-menu-avatar {
+         width: 48px;
+         height: 48px;
+         border-radius: 12px;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         flex-shrink: 0;
+       }
+
+       .profile-menu-info h4 {
+         color: var(--preview-text);
+         font-weight: 600;
+         font-size: 16px;
+         margin: 0 0 4px 0;
+         line-height: 1.2;
+       }
+
+       .profile-menu-info p {
+         color: var(--preview-text-muted);
+         font-size: 14px;
+         margin: 0;
+         line-height: 1.3;
+       }
+
+       .profile-menu-actions {
+         display: flex;
+         flex-direction: column;
+         gap: 8px;
+       }
+
+       .profile-menu-action {
+         display: flex;
+         align-items: center;
+         gap: 12px;
+         padding: 12px;
+         border-radius: 8px;
+         background: transparent;
+         border: none;
+         cursor: pointer;
+         transition: all 0.2s ease;
+         color: var(--preview-text);
+         font-size: 14px;
+         text-align: left;
+         width: 100%;
+       }
+
+       .profile-menu-action:hover {
+         background: var(--item-hover-bg);
+       }
+
+       .profile-menu-action-icon {
+         width: 20px;
+         height: 20px;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         color: var(--preview-text-muted);
+       }
+     `;
+     document.head.appendChild(globalStyles);
     
+    // Add communities
     this.communities.forEach(community => {
       const item = this.renderCommunityItem(community);
       nav.appendChild(item);
     });
+
+    // Add user profile section at the bottom
+    if (this.userProfile) {
+      const userSection = this.renderUserProfileSection();
+      nav.appendChild(userSection);
+    }
     
     this.container = nav;
     return nav;
@@ -283,37 +426,40 @@ class CommunityNavigationUI {
     let hoverTimeout: NodeJS.Timeout;
     let previewElement: HTMLElement | null = null;
 
-    item.addEventListener('mouseenter', () => {
+        item.addEventListener('mouseenter', () => {
       // Visual hover effect
       if (!isActive) {
         item.style.transform = 'scale(1.08) translateY(-1px)';
         item.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
       }
 
-             // Show preview card after slight delay
-       hoverTimeout = setTimeout(() => {
-         previewElement = this.createPreviewCard(community);
-         if (previewElement) {
-           item.appendChild(previewElement);
-           
-           // Trigger animation
-           requestAnimationFrame(() => {
-             previewElement?.classList.add('show');
-           });
-         }
-       }, 500);
+      // Show preview card after slight delay (but not for active community)
+      if (!isActive) {
+        hoverTimeout = setTimeout(() => {
+          previewElement = this.createPreviewCard(community, item);
+          if (previewElement) {
+            // Portal pattern - append to document.body to escape stacking context
+            document.body.appendChild(previewElement);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+              previewElement?.classList.add('show');
+            });
+          }
+        }, 500);
+      }
     });
 
     item.addEventListener('mouseleave', () => {
       // Clear timeout
       clearTimeout(hoverTimeout);
       
-      // Remove preview
+      // Remove preview with portal cleanup
       if (previewElement) {
         previewElement.classList.remove('show');
         setTimeout(() => {
-          if (previewElement && previewElement.parentElement) {
-            previewElement.parentElement.removeChild(previewElement);
+          if (previewElement && document.body.contains(previewElement)) {
+            document.body.removeChild(previewElement);
           }
           previewElement = null;
         }, 200);
@@ -393,9 +539,38 @@ class CommunityNavigationUI {
     return gradientMap[gradientClass] || gradientMap['gradient-blue-cyan'];
   }
 
-  private createPreviewCard(community: UserCommunityMembership): HTMLElement {
+  private createPreviewCard(community: UserCommunityMembership, triggerElement: HTMLElement): HTMLElement {
     const preview = document.createElement('div');
     preview.className = 'community-preview';
+    
+    // Calculate perfect positioning using viewport coordinates
+    const rect = triggerElement.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const cardWidth = 280; // max-width from CSS
+    const cardHeight = 120; // estimated height
+    
+    // Position to the right of the trigger, with smart viewport awareness
+    let left = rect.right + 12; // 12px gap from sidebar
+    let top = rect.top + (rect.height / 2) - (cardHeight / 2); // Center vertically
+    
+    // Smart viewport boundary detection
+    if (left + cardWidth > viewportWidth - 16) {
+      // Not enough space on right, show on left
+      left = rect.left - cardWidth - 12;
+    }
+    
+    if (top < 16) {
+      // Too close to top, align with trigger top
+      top = rect.top;
+    } else if (top + cardHeight > viewportHeight - 16) {
+      // Too close to bottom, align with trigger bottom
+      top = rect.bottom - cardHeight;
+    }
+    
+    // Apply calculated positioning
+    preview.style.left = `${Math.max(16, left)}px`;
+    preview.style.top = `${Math.max(16, top)}px`;
     
     // Generate same visual styling as the main icon
     const gradientClass = this.getGradientClass(community.name);
@@ -427,6 +602,227 @@ class CommunityNavigationUI {
     `;
     
     return preview;
+  }
+
+  private renderUserProfileSection(): HTMLElement {
+    const section = document.createElement('div');
+    section.className = 'user-profile-section';
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'user-profile-avatar';
+
+    // Create avatar content (image or fallback)
+    if (this.userProfile?.profilePictureUrl) {
+      const img = document.createElement('img');
+      img.src = this.userProfile.profilePictureUrl;
+      img.alt = this.userProfile.name;
+      img.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+      `;
+      img.onerror = () => {
+        // Fallback to gradient + initials if image fails
+        avatar.removeChild(img);
+        this.addUserAvatarFallback(avatar);
+      };
+      avatar.appendChild(img);
+    } else {
+      // Use gradient + initials fallback
+      this.addUserAvatarFallback(avatar);
+    }
+
+    // Add identity type indicator
+    this.addIdentityIndicator(avatar);
+
+    // Profile menu interactions
+    let hoverTimeout: NodeJS.Timeout;
+    let profileMenuElement: HTMLElement | null = null;
+
+    avatar.addEventListener('mouseenter', () => {
+      // Show profile menu after delay
+      hoverTimeout = setTimeout(() => {
+        profileMenuElement = this.createUserProfileMenu(avatar);
+        if (profileMenuElement) {
+          document.body.appendChild(profileMenuElement);
+          
+          requestAnimationFrame(() => {
+            profileMenuElement?.classList.add('show');
+          });
+        }
+      }, 500);
+    });
+
+    avatar.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimeout);
+      
+      if (profileMenuElement) {
+        profileMenuElement.classList.remove('show');
+        setTimeout(() => {
+          if (profileMenuElement && document.body.contains(profileMenuElement)) {
+            document.body.removeChild(profileMenuElement);
+          }
+          profileMenuElement = null;
+        }, 200);
+      }
+    });
+
+    section.appendChild(avatar);
+    return section;
+  }
+
+  private addUserAvatarFallback(avatar: HTMLElement): void {
+    const name = this.userProfile?.name || 'User';
+    const gradientClass = this.getGradientClass(name);
+    
+    // Set gradient background
+    avatar.style.background = this.getGradientStyle(gradientClass);
+    
+    // Add initials
+    const initials = document.createElement('span');
+    initials.textContent = this.getUserInitials(name);
+    initials.style.cssText = `
+      color: white;
+      font-weight: 600;
+      font-size: 18px;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    avatar.appendChild(initials);
+  }
+
+  private addIdentityIndicator(avatar: HTMLElement): void {
+    if (!this.userProfile) return;
+
+    const indicator = document.createElement('div');
+    indicator.style.cssText = `
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--sidebar-bg-from, #f8fafc);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      background: ${this.getIdentityColor()};
+    `;
+
+    indicator.textContent = this.getIdentityIcon();
+    avatar.appendChild(indicator);
+  }
+
+  private getIdentityColor(): string {
+    switch (this.userProfile?.identityType) {
+      case 'ens': return 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+      case 'universal_profile': return 'linear-gradient(135deg, #ec4899, #be185d)';
+      case 'anonymous': return 'linear-gradient(135deg, #6b7280, #4b5563)';
+      default: return 'linear-gradient(135deg, #6b7280, #4b5563)';
+    }
+  }
+
+  private getIdentityIcon(): string {
+    switch (this.userProfile?.identityType) {
+      case 'ens': return '⟠';
+      case 'universal_profile': return '🆙';
+      case 'anonymous': return '👤';
+      default: return '👤';
+    }
+  }
+
+  private getUserInitials(name: string): string {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  }
+
+  private createUserProfileMenu(triggerElement: HTMLElement): HTMLElement {
+    const menu = document.createElement('div');
+    menu.className = 'user-profile-menu';
+    
+    // Calculate positioning
+    const rect = triggerElement.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const menuWidth = 320;
+    const menuHeight = 280;
+    
+    let left = rect.right + 12;
+    let top = rect.top + (rect.height / 2) - (menuHeight / 2);
+    
+    // Smart viewport positioning
+    if (left + menuWidth > viewportWidth - 16) {
+      left = rect.left - menuWidth - 12;
+    }
+    
+    if (top < 16) {
+      top = rect.top;
+    } else if (top + menuHeight > viewportHeight - 16) {
+      top = rect.bottom - menuHeight;
+    }
+    
+    menu.style.left = `${Math.max(16, left)}px`;
+    menu.style.top = `${Math.max(16, top)}px`;
+
+    // Create menu content
+    menu.innerHTML = `
+      <div class="profile-menu-header">
+        <div class="profile-menu-avatar" style="background: ${this.userProfile?.profilePictureUrl ? 'transparent' : this.getGradientStyle(this.getGradientClass(this.userProfile?.name || 'User'))}">
+          ${this.userProfile?.profilePictureUrl ? 
+            `<img src="${this.userProfile.profilePictureUrl}" alt="${this.userProfile.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+            `<span style="color: white; font-weight: 600; font-size: 18px;">${this.getUserInitials(this.userProfile?.name || 'User')}</span>`
+          }
+        </div>
+        <div class="profile-menu-info">
+          <h4>${this.userProfile?.name || 'Anonymous User'}</h4>
+          <p>${this.getIdentityLabel()}</p>
+        </div>
+      </div>
+      <div class="profile-menu-actions">
+        <button class="profile-menu-action" onclick="console.log('View Profile')">
+          <div class="profile-menu-action-icon">👤</div>
+          <span>View Profile</span>
+        </button>
+        <button class="profile-menu-action" onclick="console.log('Account Settings')">
+          <div class="profile-menu-action-icon">⚙️</div>
+          <span>Account Settings</span>
+        </button>
+        <button class="profile-menu-action" onclick="console.log('Switch Account')">
+          <div class="profile-menu-action-icon">🔄</div>
+          <span>Switch Account</span>
+        </button>
+        <button class="profile-menu-action" onclick="console.log('Manage Sessions')">
+          <div class="profile-menu-action-icon">🔐</div>
+          <span>Manage Sessions</span>
+        </button>
+        <button class="profile-menu-action" onclick="console.log('Sign Out')">
+          <div class="profile-menu-action-icon">🚪</div>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    `;
+    
+    return menu;
+  }
+
+  private getIdentityLabel(): string {
+    if (!this.userProfile) return 'Unknown';
+    
+    switch (this.userProfile.identityType) {
+      case 'ens':
+        return this.userProfile.ensDomain ? `ENS: ${this.userProfile.ensDomain}` : 'ENS Domain';
+      case 'universal_profile':
+        return this.userProfile.upAddress ? `UP: ${this.userProfile.upAddress.slice(0, 6)}...${this.userProfile.upAddress.slice(-4)}` : 'Universal Profile';
+      case 'anonymous':
+        return 'Anonymous Session';
+      default:
+        return 'User Account';
+    }
   }
 }
 
@@ -488,6 +884,7 @@ export class InternalPluginHost {
   private apiProxy: ApiProxyClient;
   private communityNavigation: CommunityNavigationUI | null = null;
   private userCommunities: UserCommunityMembership[] = [];
+  private userProfile: UserProfile | null = null;
   private embedContainer: HTMLElement | null = null;
 
   constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string) {
@@ -681,10 +1078,65 @@ export class InternalPluginHost {
   }
 
   /**
+   * Fetch user profile information
+   */
+  private async fetchUserProfile(): Promise<UserProfile | null> {
+    try {
+      if (!this.authContext?.sessionToken) {
+        console.log('[InternalPluginHost] No session token for user profile fetch');
+        return null;
+      }
+
+      // Use the validate-session endpoint to get user profile data
+      const response = await fetch(`${this.hostServiceUrl}/api/auth/validate-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionToken: this.authContext.sessionToken
+        })
+      });
+
+      if (!response.ok) {
+        console.error('[InternalPluginHost] Failed to fetch user profile:', response.status);
+        return null;
+      }
+
+      const data = await response.json();
+      
+      if (data.user) {
+        return {
+          userId: data.user.user_id,
+          name: data.user.name,
+          profilePictureUrl: data.user.profile_picture_url,
+          identityType: data.user.identity_type,
+          walletAddress: data.user.wallet_address,
+          ensDomain: data.user.ens_domain,
+          upAddress: data.user.up_address,
+          isAnonymous: data.user.is_anonymous
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[InternalPluginHost] Error fetching user profile:', error);
+      return null;
+    }
+  }
+
+  /**
    * Initialize community navigation if user has multiple communities
    */
   private async initializeCommunityNavigation(): Promise<void> {
-    this.userCommunities = await this.fetchUserCommunities();
+    // Fetch both user communities and profile data
+    const [communities, profile] = await Promise.all([
+      this.fetchUserCommunities(),
+      this.fetchUserProfile()
+    ]);
+    
+    this.userCommunities = communities;
+    this.userProfile = profile;
     
     // Only show navigation if user has 2+ communities
     if (this.userCommunities.length < 2) {
@@ -694,10 +1146,11 @@ export class InternalPluginHost {
     
     console.log('[InternalPluginHost] User has', this.userCommunities.length, 'communities, showing navigation');
     
-    // Create community navigation (no click handlers for now)
+    // Create community navigation with user profile
     this.communityNavigation = new CommunityNavigationUI(
       this.userCommunities,
-      this.authContext?.communityId || ''
+      this.authContext?.communityId || '',
+      this.userProfile
     );
   }
 

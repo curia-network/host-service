@@ -82,11 +82,8 @@ class CommunityNavigationUI {
       display: flex;
       flex-direction: column;
       padding: 16px;
-      gap: 14px;
-      overflow-y: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
       position: relative;
+      min-height: 0;
     `;
     
     // Add comprehensive styling for dark/light modes and hover effects
@@ -100,12 +97,14 @@ class CommunityNavigationUI {
         --sidebar-bg-from: #1e293b;
         --sidebar-bg-to: #0f172a;
         --sidebar-border: rgba(71, 85, 105, 0.3);
-        --item-hover-bg: rgba(255, 255, 255, 0.1);
-        --item-active-border: #3b82f6;
+        --item-bg: rgba(30, 41, 59, 0.8);
+        --item-hover-bg: rgba(30, 41, 59, 0.95);
+        --item-active-bg: rgba(59, 130, 246, 0.2);
+        --item-active-border: rgba(59, 130, 246, 0.4);
         --item-active-shadow: rgba(59, 130, 246, 0.3);
-        --preview-bg: #1e293b;
-        --preview-border: rgba(71, 85, 105, 0.4);
-        --preview-text: #e2e8f0;
+        --preview-bg: rgba(30, 41, 59, 0.95);
+        --preview-border: rgba(71, 85, 105, 0.3);
+        --preview-text: #f1f5f9;
         --preview-text-muted: #94a3b8;
       }
       
@@ -114,13 +113,15 @@ class CommunityNavigationUI {
         --sidebar-bg-from: #f8fafc;
         --sidebar-bg-to: #f1f5f9;
         --sidebar-border: rgba(148, 163, 184, 0.2);
-        --item-hover-bg: rgba(255, 255, 255, 0.8);
-        --item-active-border: #3b82f6;
+        --item-bg: rgba(255, 255, 255, 0.8);
+        --item-hover-bg: rgba(255, 255, 255, 0.95);
+        --item-active-bg: rgba(59, 130, 246, 0.1);
+        --item-active-border: rgba(59, 130, 246, 0.3);
         --item-active-shadow: rgba(59, 130, 246, 0.2);
-        --preview-bg: #ffffff;
+        --preview-bg: rgba(255, 255, 255, 0.95);
         --preview-border: rgba(148, 163, 184, 0.2);
-        --preview-text: #1e293b;
-        --preview-text-muted: #64748b;
+        --preview-text: #1f2937;
+        --preview-text-muted: #6b7280;
       }
       
       /* Community item hover effects */
@@ -208,12 +209,7 @@ class CommunityNavigationUI {
          font-size: 13px;
        }
 
-       /* User profile section styling */
-       .user-profile-section {
-         margin-top: auto;
-         padding-top: 16px;
-         border-top: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
-       }
+
 
        .user-profile-avatar {
          width: 48px;
@@ -329,16 +325,60 @@ class CommunityNavigationUI {
          justify-content: center;
          color: var(--preview-text-muted);
        }
+
+       /* Community list container - scrollable */
+       .community-list-container {
+         flex: 1;
+         overflow-y: auto;
+         scrollbar-width: thin;
+         scrollbar-color: var(--sidebar-border) transparent;
+         padding: 0 4px;
+         margin: 0 -4px;
+         display: flex;
+         flex-direction: column;
+         gap: 14px;
+       }
+
+       .community-list-container::-webkit-scrollbar {
+         width: 6px;
+       }
+
+       .community-list-container::-webkit-scrollbar-track {
+         background: transparent;
+       }
+
+       .community-list-container::-webkit-scrollbar-thumb {
+         background: var(--sidebar-border);
+         border-radius: 3px;
+       }
+
+       .community-list-container::-webkit-scrollbar-thumb:hover {
+         background: var(--preview-text-muted);
+       }
+
+       /* User profile section styling - fixed at bottom */
+       .user-profile-section {
+         margin-top: 16px;
+         padding-top: 16px;
+         border-top: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
+         flex-shrink: 0;
+       }
      `;
      document.head.appendChild(globalStyles);
     
-    // Add communities
+    // Create scrollable community list container
+    const communityListContainer = document.createElement('div');
+    communityListContainer.className = 'community-list-container';
+    
+    // Add communities to scrollable container
     this.communities.forEach(community => {
       const item = this.renderCommunityItem(community);
-      nav.appendChild(item);
+      communityListContainer.appendChild(item);
     });
+    
+    nav.appendChild(communityListContainer);
 
-    // Add user profile section at the bottom
+    // Add user profile section at the bottom (fixed)
     if (this.userProfile) {
       const userSection = this.renderUserProfileSection();
       nav.appendChild(userSection);
@@ -636,27 +676,32 @@ class CommunityNavigationUI {
     // Add identity type indicator
     this.addIdentityIndicator(avatar);
 
-    // Profile menu interactions
-    let hoverTimeout: NodeJS.Timeout;
+    // Profile menu interactions - click-based
     let profileMenuElement: HTMLElement | null = null;
 
-    avatar.addEventListener('mouseenter', () => {
-      // Show profile menu after delay
-      hoverTimeout = setTimeout(() => {
-        profileMenuElement = this.createUserProfileMenu(avatar);
-        if (profileMenuElement) {
-          document.body.appendChild(profileMenuElement);
-          
-          requestAnimationFrame(() => {
-            profileMenuElement?.classList.add('show');
-          });
-        }
-      }, 500);
-    });
+    const showMenu = () => {
+      if (profileMenuElement) return; // Already open
 
-    avatar.addEventListener('mouseleave', () => {
-      clearTimeout(hoverTimeout);
-      
+      profileMenuElement = this.createUserProfileMenu(avatar);
+      if (profileMenuElement) {
+        document.body.appendChild(profileMenuElement);
+        
+        // Add menu hover handlers to keep it open
+        profileMenuElement.addEventListener('mouseenter', () => {
+          // Keep menu open when hovering over it
+        });
+        
+        profileMenuElement.addEventListener('mouseleave', () => {
+          // Keep menu open even when leaving (only close on click outside)
+        });
+        
+        requestAnimationFrame(() => {
+          profileMenuElement?.classList.add('show');
+        });
+      }
+    };
+
+    const hideMenu = () => {
       if (profileMenuElement) {
         profileMenuElement.classList.remove('show');
         setTimeout(() => {
@@ -665,6 +710,23 @@ class CommunityNavigationUI {
           }
           profileMenuElement = null;
         }, 200);
+      }
+    };
+
+    // Click to toggle menu
+    avatar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (profileMenuElement) {
+        hideMenu();
+      } else {
+        showMenu();
+      }
+    });
+
+    // Click outside to close menu
+    document.addEventListener('click', (e) => {
+      if (profileMenuElement && !profileMenuElement.contains(e.target as Node) && !avatar.contains(e.target as Node)) {
+        hideMenu();
       }
     });
 
@@ -745,29 +807,24 @@ class CommunityNavigationUI {
     const menu = document.createElement('div');
     menu.className = 'user-profile-menu';
     
-    // Calculate positioning
+    // Get absolute position of trigger button
     const rect = triggerElement.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const menuWidth = 320;
-    const menuHeight = 280;
+    const spacing = 8; // Gap between button and menu
     
-    let left = rect.right + 12;
-    let top = rect.top + (rect.height / 2) - (menuHeight / 2);
+    // Position menu ABOVE the button using BOTTOM positioning (duh!)
+    let left = rect.right + spacing;
+    let bottom = viewportHeight - rect.top + spacing; // Menu bottom is spacing pixels above button top
     
-    // Smart viewport positioning
+    // Handle right edge overflow - flip to left side of button
     if (left + menuWidth > viewportWidth - 16) {
-      left = rect.left - menuWidth - 12;
+      left = rect.left - menuWidth - spacing;
     }
     
-    if (top < 16) {
-      top = rect.top;
-    } else if (top + menuHeight > viewportHeight - 16) {
-      top = rect.bottom - menuHeight;
-    }
-    
-    menu.style.left = `${Math.max(16, left)}px`;
-    menu.style.top = `${Math.max(16, top)}px`;
+    menu.style.left = `${left}px`;
+    menu.style.bottom = `${bottom}px`;
 
     // Create menu content
     menu.innerHTML = `

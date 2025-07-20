@@ -57,12 +57,14 @@ class CommunityNavigationUI {
   private communities: UserCommunityMembership[];
   private currentCommunityId: string;
   private userProfile: UserProfile | null;
+  private onMenuAction?: (action: string) => void;
   private container: HTMLElement | null = null;
 
-  constructor(communities: UserCommunityMembership[], currentCommunityId: string, userProfile: UserProfile | null) {
+  constructor(communities: UserCommunityMembership[], currentCommunityId: string, userProfile: UserProfile | null, onMenuAction?: (action: string) => void) {
     this.communities = communities;
     this.currentCommunityId = currentCommunityId;
     this.userProfile = userProfile;
+    this.onMenuAction = onMenuAction;
   }
 
   render(): HTMLElement {
@@ -255,6 +257,7 @@ class CommunityNavigationUI {
        .user-profile-menu.show {
          opacity: 1;
          transform: translateX(0) scale(1);
+         pointer-events: auto;
        }
 
        .profile-menu-header {
@@ -841,28 +844,32 @@ class CommunityNavigationUI {
         </div>
       </div>
       <div class="profile-menu-actions">
-        <button class="profile-menu-action" onclick="console.log('View Profile')">
-          <div class="profile-menu-action-icon">👤</div>
-          <span>View Profile</span>
-        </button>
-        <button class="profile-menu-action" onclick="console.log('Account Settings')">
+        <button class="profile-menu-action" data-action="settings">
           <div class="profile-menu-action-icon">⚙️</div>
-          <span>Account Settings</span>
+          <span>Settings</span>
         </button>
-        <button class="profile-menu-action" onclick="console.log('Switch Account')">
+        <button class="profile-menu-action" data-action="switch-account">
           <div class="profile-menu-action-icon">🔄</div>
           <span>Switch Account</span>
         </button>
-        <button class="profile-menu-action" onclick="console.log('Manage Sessions')">
-          <div class="profile-menu-action-icon">🔐</div>
-          <span>Manage Sessions</span>
-        </button>
-        <button class="profile-menu-action" onclick="console.log('Sign Out')">
+        <button class="profile-menu-action" data-action="sign-out">
           <div class="profile-menu-action-icon">🚪</div>
           <span>Sign Out</span>
         </button>
       </div>
     `;
+    
+    // Add event listeners for menu actions
+    menu.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('.profile-menu-action') as HTMLElement;
+      if (!button) return;
+      
+      const action = button.getAttribute('data-action');
+      if (action && this.onMenuAction) {
+        this.onMenuAction(action);
+      }
+    });
     
     return menu;
   }
@@ -881,6 +888,8 @@ class CommunityNavigationUI {
         return 'User Account';
     }
   }
+
+
 }
 
 /**
@@ -1203,11 +1212,12 @@ export class InternalPluginHost {
     
     console.log('[InternalPluginHost] User has', this.userCommunities.length, 'communities, showing navigation');
     
-    // Create community navigation with user profile
+    // Create community navigation with user profile and menu action handler
     this.communityNavigation = new CommunityNavigationUI(
       this.userCommunities,
       this.authContext?.communityId || '',
-      this.userProfile
+      this.userProfile,
+      (action: string) => this.handleMenuAction(action)
     );
   }
 
@@ -1442,6 +1452,93 @@ export class InternalPluginHost {
     // myUid stays - it's not nullable and helps identify this instance in logs
     
     console.log('[InternalPluginHost] Destroyed instance with UID:', this.myUid);
+  }
+
+  /**
+   * Handle menu action clicks from the user profile menu
+   */
+  private handleMenuAction(action: string): void {
+    switch (action) {
+      case 'sign-out':
+        this.signOut();
+        break;
+      case 'switch-account':
+        this.switchAccount();
+        break;
+      case 'settings':
+        this.openSettings();
+        break;
+      default:
+        console.log('[InternalPluginHost] Unknown menu action:', action);
+    }
+  }
+
+  /**
+   * Sign out: Complete reset to initial state
+   */
+  private signOut(): void {
+    console.log('[InternalPluginHost] Signing out user - performing complete reset');
+    this.resetToInitialState();
+  }
+
+  /**
+   * Switch account: Complete reset to initial state
+   */
+  private switchAccount(): void {
+    console.log('[InternalPluginHost] Switching account - performing complete reset');
+    this.resetToInitialState();
+  }
+
+  /**
+   * Open settings: Placeholder for future implementation
+   */
+  private openSettings(): void {
+    console.log('[InternalPluginHost] Opening settings (placeholder)');
+    // TODO: Implement settings modal or navigation
+  }
+
+  /**
+   * Complete reset to initial state - clean up all forum-phase artifacts
+   */
+  private resetToInitialState(): void {
+    console.log('[InternalPluginHost] Resetting to initial state');
+    
+    // 1. Clean up all forum phase DOM elements
+    this.cleanupForumPhase();
+    
+    // 2. Reset all state variables
+    this.communityNavigation = null;
+    this.userCommunities = [];
+    this.userProfile = null;
+    this.embedContainer = null;
+    this.authContext = null;
+    this.currentIframe = null;
+    
+    // 3. Clear session storage
+    localStorage.removeItem('curia_session_token');
+    
+    // 4. Recreate clean auth iframe
+    this.container.innerHTML = '';
+    this.initializeAuthPhase();
+  }
+
+  /**
+   * Clean up all forum phase artifacts
+   */
+  private cleanupForumPhase(): void {
+    console.log('[InternalPluginHost] Cleaning up forum phase artifacts');
+    
+    // Clean up portal elements (community previews, user profile menu)
+    const portals = document.querySelectorAll('.community-preview, .user-profile-menu');
+    portals.forEach(portal => {
+      console.log('[InternalPluginHost] Removing portal element:', portal.className);
+      portal.remove();
+    });
+    
+    // Note: API proxy iframe reference will be reset when new iframe is set
+    // No need to explicitly clear it as setActiveIframe will be called with new iframe
+    
+    console.log('[InternalPluginHost] Forum phase cleanup complete');
   }
 }
 

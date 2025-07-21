@@ -1,0 +1,19 @@
+/*
+ * Light Theme for Curia Community Navigation
+ * Default theme with clean, bright appearance
+ */
+
+.curia-community-nav {
+  --sidebar-bg-from: #f8fafc;
+  --sidebar-bg-to: #f1f5f9;
+  --sidebar-border: rgba(148, 163, 184, 0.2);
+  --item-bg: rgba(255, 255, 255, 0.8);
+  --item-hover-bg: rgba(255, 255, 255, 0.95);
+  --item-active-bg: rgba(59, 130, 246, 0.1);
+  --item-active-border: rgba(59, 130, 246, 0.3);
+  --item-active-shadow: rgba(59, 130, 246, 0.2);
+  --preview-bg: rgba(255, 255, 255, 0.95);
+  --preview-border: rgba(148, 163, 184, 0.2);
+  --preview-text: #1f2937;
+  --preview-text-muted: #6b7280;
+} 

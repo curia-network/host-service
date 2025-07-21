@@ -1,0 +1,20 @@
+/*
+ * Dark Theme for Curia Community Navigation
+ * Modern dark appearance with blue accents
+ */
+
+[data-theme="dark"] .curia-community-nav,
+.dark .curia-community-nav {
+  --sidebar-bg-from: #1e293b;
+  --sidebar-bg-to: #0f172a;
+  --sidebar-border: rgba(71, 85, 105, 0.3);
+  --item-bg: rgba(30, 41, 59, 0.8);
+  --item-hover-bg: rgba(30, 41, 59, 0.95);
+  --item-active-bg: rgba(59, 130, 246, 0.2);
+  --item-active-border: rgba(59, 130, 246, 0.4);
+  --item-active-shadow: rgba(59, 130, 246, 0.3);
+  --preview-bg: rgba(30, 41, 59, 0.95);
+  --preview-border: rgba(71, 85, 105, 0.3);
+  --preview-text: #f1f5f9;
+  --preview-text-muted: #94a3b8;
+} 

@@ -29,6 +29,12 @@ export function parseEmbedConfig(scriptElement?: HTMLScriptElement): EmbedConfig
   };
 
   console.log('[Curia] Parsed embed config:', config);
+  console.log('[Curia] Dimensions parsed:', {
+    width: config.width,
+    height: config.height,
+    widthSource: script.getAttribute('data-width') ? 'data-width' : 'default',
+    heightSource: script.getAttribute('data-height') ? 'data-height' : 'default'
+  });
   return config;
 }
 

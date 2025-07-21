@@ -1,0 +1,78 @@
+/*
+ * Community Preview Cards & Tooltips
+ * Extracted from InternalPluginHost.ts for better maintainability
+ */
+
+/* Preview card styling - Portal pattern for document-level rendering */
+.community-preview {
+  position: fixed;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--preview-bg);
+  border: 1px solid var(--preview-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1);
+  z-index: 999999;
+  opacity: 0;
+  transform: translateX(-8px) scale(0.95);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+}
+
+.community-preview.show {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.community-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.community-preview-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.community-preview-info h4 {
+  color: var(--preview-text);
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.community-preview-info p {
+  color: var(--preview-text-muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.community-preview-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--preview-border);
+}
+
+.community-preview-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--preview-text-muted);
+  font-size: 13px;
+} 

@@ -365,11 +365,14 @@ export class CommunitySidebar {
 /* User profile section */
 .user-profile-section {
   margin-top: var(--space-md);
-  padding-top: var(--space-md);
   border-top: 1px solid var(--sidebar-border);
   flex-shrink: 0;
   height: var(--profile-height);
   min-height: var(--profile-height);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-sm);
 }
 
 .user-profile-avatar {
@@ -487,13 +490,16 @@ export class CommunitySidebar {
     /* Profile section on the right side */
     margin-top: 0 !important;
     margin-left: var(--space-md) !important;
-    padding-top: 0 !important;
     padding-left: var(--space-md) !important;
+    padding-bottom: var(--space-sm) !important;
     border-top: none !important;
     border-left: 1px solid var(--sidebar-border) !important;
     height: auto !important;
     min-height: auto !important;
     flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   .user-profile-avatar {

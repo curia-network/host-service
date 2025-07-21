@@ -396,43 +396,173 @@ export class CommunitySidebar {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Preview and menu components - simplified versions for now */
+/* Preview and menu components - Beautiful premium styling restored */
 .community-preview {
   position: fixed;
   min-width: 220px;
+  max-width: 280px;
   background: var(--preview-bg);
   border: 1px solid var(--preview-border);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1);
   z-index: 999999;
   opacity: 0;
-  transition: all 0.2s ease;
+  transform: translateX(-8px) scale(0.95);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  backdrop-filter: blur(12px);
 }
 
 .community-preview.show {
   opacity: 1;
+  transform: translateX(0) scale(1);
   pointer-events: auto;
+}
+
+.community-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.community-preview-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.community-preview-info h4 {
+  color: var(--preview-text);
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.community-preview-info p {
+  color: var(--preview-text-muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.community-preview-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--preview-border);
+}
+
+.community-preview-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--preview-text-muted);
+  font-size: 13px;
 }
 
 .user-profile-menu {
   position: fixed;
   min-width: 280px;
+  max-width: 320px;
   background: var(--preview-bg);
   border: 1px solid var(--preview-border);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1);
   z-index: 999999;
   opacity: 0;
-  transition: all 0.2s ease;
+  transform: translateX(-8px) scale(0.95);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  backdrop-filter: blur(12px);
 }
 
 .user-profile-menu.show {
   opacity: 1;
+  transform: translateX(0) scale(1);
   pointer-events: auto;
+}
+
+.profile-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--preview-border);
+}
+
+.profile-menu-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-menu-info h4 {
+  color: var(--preview-text);
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.profile-menu-info p {
+  color: var(--preview-text-muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.profile-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--preview-text);
+  font-size: 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.profile-menu-action:hover {
+  background: var(--item-hover-bg);
+}
+
+.profile-menu-action-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--preview-text-muted);
 }
 
 /* Mobile Responsive - Horizontal Bottom Nav Bar */

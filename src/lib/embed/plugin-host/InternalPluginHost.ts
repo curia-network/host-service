@@ -74,26 +74,58 @@ class CommunityNavigationUI {
     const nav = document.createElement('div');
     nav.className = 'curia-community-nav';
     
-    // Beautiful inset sidebar styling with gradients
-    nav.style.cssText = `
-      width: 80px;
-      background: linear-gradient(135deg, 
-        var(--sidebar-bg-from, #f8fafc) 0%, 
-        var(--sidebar-bg-to, #f1f5f9) 100%);
-      border-right: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
-      box-shadow: 
-        inset 2px 0 4px rgba(0, 0, 0, 0.05),
-        inset 0 2px 4px rgba(0, 0, 0, 0.03);
-      display: flex;
-      flex-direction: column;
-      padding: 16px;
-      position: relative;
-      min-height: 0;
-    `;
+    // All styling is now handled by CSS classes - much cleaner!
     
     // Add comprehensive styling for dark/light modes and hover effects
     const globalStyles = document.createElement('style');
     globalStyles.textContent = `
+             .curia-community-nav {
+         /* 
+          * Responsive Design System using rem units
+          * Benefits: Scales with user's font preferences, accessible, maintainable
+          * All values scale proportionally if user changes browser font size
+          */
+         
+         /* Responsive sidebar dimensions */
+         --sidebar-width: 5rem;        /* 80px @ 16px base */
+         --sidebar-height: 37.5rem;    /* 600px @ 16px base */
+         --sidebar-padding: 1rem;      /* 16px @ 16px base */
+         
+         /* Community icon dimensions */
+         --icon-size: 3rem;            /* 48px @ 16px base */
+         --icon-image-size: 2.75rem;   /* 44px @ 16px base */
+         --icon-emoji-size: 1.5rem;    /* 24px @ 16px base */
+         --icon-border-radius: 0.75rem; /* 12px @ 16px base */
+         
+         /* Consistent spacing system */
+         --space-xs: 0.5rem;           /* 8px */
+         --space-sm: 0.75rem;          /* 12px */
+         --space-md: 1rem;             /* 16px */
+         --space-lg: 1.25rem;          /* 20px */
+         
+         /* Profile section */
+         --profile-height: 5.5rem;     /* 88px @ 16px base */
+         
+         /* Main sidebar layout */
+         width: var(--sidebar-width);
+         height: var(--sidebar-height);
+         min-height: var(--sidebar-height);
+         max-height: var(--sidebar-height);
+         flex-shrink: 0;
+         flex-grow: 0;
+         background: linear-gradient(135deg, 
+           var(--sidebar-bg-from, #f8fafc) 0%, 
+           var(--sidebar-bg-to, #f1f5f9) 100%);
+         border-right: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
+         box-shadow: 
+           inset 0.125rem 0 0.25rem rgba(0, 0, 0, 0.05),
+           inset 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
+         display: flex;
+         flex-direction: column;
+         padding: var(--sidebar-padding);
+         position: relative;
+       }
+      
       .curia-community-nav::-webkit-scrollbar { display: none; }
       
       /* Dark mode variables */
@@ -411,18 +443,73 @@ class CommunityNavigationUI {
        /* Community list container - scrollable */
        .community-list-container {
          flex: 1;
+         height: 0; /* Force flex to work properly */
          overflow-y: auto;
          scrollbar-width: thin;
          scrollbar-color: var(--sidebar-border) transparent;
-         padding: 0 4px;
-         margin: 0 -4px;
+         padding: 0 0.25rem;
+         margin: 0 -0.25rem;
          display: flex;
          flex-direction: column;
-         gap: 14px;
+         gap: 0.875rem;
+       }
+
+       /* Community item styling */
+       .community-item {
+         width: var(--icon-size);
+         height: var(--icon-size);
+         min-width: var(--icon-size);
+         min-height: var(--icon-size);
+         max-width: var(--icon-size);
+         max-height: var(--icon-size);
+         border-radius: var(--icon-border-radius);
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         cursor: pointer;
+         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+         position: relative;
+         overflow: hidden;
+         user-select: none;
+         flex-shrink: 0;
+         border: 0.125rem solid transparent;
+         box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+       }
+
+       .community-item.active {
+         border-color: var(--item-active-border);
+         box-shadow: 0 0.25rem 0.75rem var(--item-active-shadow), 0 0 0 0.0625rem var(--item-active-border);
+       }
+
+       .community-item:hover:not(.active) {
+         transform: scale(1.08) translateY(-0.0625rem);
+         box-shadow: 0 0.375rem 1.25rem rgba(0, 0, 0, 0.15);
+       }
+
+       /* Community icon image */
+       .community-icon-image {
+         width: var(--icon-image-size);
+         height: var(--icon-image-size);
+         object-fit: cover;
+         border-radius: 0.625rem;
+         margin: 0.125rem;
+         flex-shrink: 0;
+       }
+
+       /* Community icon emoji */
+       .community-icon-emoji {
+         font-size: var(--icon-emoji-size);
+         line-height: 1;
+         width: var(--icon-emoji-size);
+         height: var(--icon-emoji-size);
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         flex-shrink: 0;
        }
 
        .community-list-container::-webkit-scrollbar {
-         width: 6px;
+         width: 0.375rem;
        }
 
        .community-list-container::-webkit-scrollbar-track {
@@ -431,7 +518,7 @@ class CommunityNavigationUI {
 
        .community-list-container::-webkit-scrollbar-thumb {
          background: var(--sidebar-border);
-         border-radius: 3px;
+         border-radius: 0.1875rem;
        }
 
        .community-list-container::-webkit-scrollbar-thumb:hover {
@@ -440,10 +527,12 @@ class CommunityNavigationUI {
 
        /* User profile section styling - fixed at bottom */
        .user-profile-section {
-         margin-top: 16px;
-         padding-top: 16px;
+         margin-top: var(--space-md);
+         padding-top: var(--space-md);
          border-top: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
          flex-shrink: 0;
+         height: var(--profile-height);
+         min-height: var(--profile-height);
        }
      `;
      document.head.appendChild(globalStyles);
@@ -475,26 +564,6 @@ class CommunityNavigationUI {
     const isActive = community.id === this.currentCommunityId;
     
     item.className = `community-item ${isActive ? 'active' : ''}`;
-    
-    // Perfect 48x48 squircle styling
-    item.style.cssText = `
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
-      user-select: none;
-      border: ${isActive ? '2px solid var(--item-active-border)' : '2px solid transparent'};
-      box-shadow: ${isActive ? 
-        '0 4px 12px var(--item-active-shadow), 0 0 0 1px var(--item-active-border)' : 
-        '0 2px 8px rgba(0, 0, 0, 0.1)'
-      };
-    `;
 
     // Create the beautiful background (logo or gradient + emoji)
     if (community.logoUrl) {
@@ -502,13 +571,7 @@ class CommunityNavigationUI {
       const logo = document.createElement('img');
       logo.src = community.logoUrl;
       logo.alt = community.name;
-      logo.style.cssText = `
-        width: calc(100% - 4px);
-        height: calc(100% - 4px);
-        object-fit: cover;
-        border-radius: 10px;
-        margin: 2px;
-      `;
+      logo.className = 'community-icon-image';
       logo.onerror = () => {
         // Fallback to gradient + emoji if image fails
         item.removeChild(logo);
@@ -549,12 +612,6 @@ class CommunityNavigationUI {
     let previewElement: HTMLElement | null = null;
 
         item.addEventListener('mouseenter', () => {
-      // Visual hover effect
-      if (!isActive) {
-        item.style.transform = 'scale(1.08) translateY(-1px)';
-        item.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
-      }
-
       // Show preview card after slight delay (but not for active community)
       if (!isActive) {
         hoverTimeout = setTimeout(() => {
@@ -586,12 +643,6 @@ class CommunityNavigationUI {
           previewElement = null;
         }, 200);
       }
-
-      // Reset visual state
-      if (!isActive) {
-        item.style.transform = 'scale(1) translateY(0)';
-        item.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-      }
     });
 
     return item;
@@ -608,10 +659,7 @@ class CommunityNavigationUI {
     // Add emoji icon
     const iconSpan = document.createElement('span');
     iconSpan.textContent = icon;
-    iconSpan.style.cssText = `
-      font-size: 24px;
-      line-height: 1;
-    `;
+    iconSpan.className = 'community-icon-emoji';
     item.appendChild(iconSpan);
   }
 
@@ -1397,13 +1445,18 @@ export class InternalPluginHost {
       // Create embed container with sidebar + iframe layout
       this.embedContainer = document.createElement('div');
       this.embedContainer.className = 'curia-embed-container';
+      // Ensure minimum height for sidebar (37.5rem = 600px @ 16px base)
+      const configHeight = this.config.height || '43.75rem'; // 700px default
+      const minSidebarHeight = '37.5rem'; // 600px
+      
       this.embedContainer.style.cssText = `
         display: flex;
         width: ${this.config.width || '100%'};
-        height: ${this.config.height || '700px'};
-        border-radius: ${this.config.borderRadius || '8px'};
+        height: ${configHeight};
+        min-height: ${minSidebarHeight};
+        border-radius: ${this.config.borderRadius || '0.5rem'};
         overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 0.25rem 0.375rem rgba(0, 0, 0, 0.1);
       `;
 
       // Add navigation sidebar

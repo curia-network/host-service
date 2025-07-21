@@ -173,27 +173,38 @@ export class UserProfileComponent {
     // Position menu relative to trigger element
     this.positionMenu(menu, triggerElement);
 
-    // Add menu content (simplified for now)
+    // Add rich menu content with avatar and detailed identity info
+    const userName = this.userProfile.name || 'Anonymous User';
+    const hasProfileImage = !!this.userProfile.profilePictureUrl;
+    const gradientClass = this.getGradientClass(userName);
+    const gradientStyle = this.getGradientStyle(gradientClass);
+    
     menu.innerHTML = `
       <div class="profile-menu-header">
+        <div class="profile-menu-avatar" style="background: ${hasProfileImage ? 'transparent' : gradientStyle}">
+          ${hasProfileImage ? 
+            `<img src="${this.userProfile.profilePictureUrl}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+            `<span style="color: white; font-weight: 600; font-size: 18px;">${this.getUserInitials(userName)}</span>`
+          }
+        </div>
         <div class="profile-menu-info">
-          <h4>${this.userProfile.name || 'Anonymous User'}</h4>
+          <h4>${userName}</h4>
           <p>${this.getIdentityLabel()}</p>
         </div>
       </div>
       
       <div class="profile-menu-actions">
         <button class="profile-menu-action" data-action="settings">
-          <span class="profile-menu-action-icon">⚙️</span>
-          Settings
+          <div class="profile-menu-action-icon">⚙️</div>
+          <span>Settings</span>
         </button>
-        <button class="profile-menu-action" data-action="add-account">
-          <span class="profile-menu-action-icon">➕</span>
-          Add Account
+        <button class="profile-menu-action" data-action="switch-account">
+          <div class="profile-menu-action-icon">🔄</div>
+          <span>Switch Account</span>
         </button>
         <button class="profile-menu-action" data-action="sign-out">
-          <span class="profile-menu-action-icon">🚪</span>
-          Sign Out
+          <div class="profile-menu-action-icon">🚪</div>
+          <span>Sign Out</span>
         </button>
       </div>
     `;
@@ -245,11 +256,51 @@ export class UserProfileComponent {
 
   private getIdentityLabel(): string {
     switch (this.userProfile.identityType) {
-      case 'ens': return `ENS: ${this.userProfile.ensDomain}`;
-      case 'universal_profile': return 'Universal Profile';
-      case 'anonymous': return 'Anonymous Session';
-      default: return 'User';
+      case 'ens':
+        return this.userProfile.ensDomain ? `ENS: ${this.userProfile.ensDomain}` : 'ENS Domain';
+      case 'universal_profile':
+        return this.userProfile.upAddress ? `UP: ${this.userProfile.upAddress.slice(0, 6)}...${this.userProfile.upAddress.slice(-4)}` : 'Universal Profile';
+      case 'anonymous':
+        return 'Anonymous Session';
+      default:
+        return 'User Account';
     }
+  }
+
+  private getGradientClass(name: string): string {
+    const gradients = [
+      'gradient-pink-purple',
+      'gradient-blue-cyan', 
+      'gradient-emerald-teal',
+      'gradient-orange-pink',
+      'gradient-purple-blue',
+      'gradient-cyan-emerald'
+    ];
+    
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return gradients[hash % gradients.length];
+  }
+
+  private getGradientStyle(gradientClass: string): string {
+    const gradientMap: Record<string, string> = {
+      'gradient-pink-purple': 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+      'gradient-blue-cyan': 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+      'gradient-emerald-teal': 'linear-gradient(135deg, #10b981, #14b8a6)',
+      'gradient-orange-pink': 'linear-gradient(135deg, #f97316, #ec4899)',
+      'gradient-purple-blue': 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+      'gradient-cyan-emerald': 'linear-gradient(135deg, #06b6d4, #10b981)'
+    };
+    
+    return gradientMap[gradientClass] || gradientMap['gradient-blue-cyan'];
+  }
+
+  private getUserInitials(name: string): string {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
   }
 
   /**

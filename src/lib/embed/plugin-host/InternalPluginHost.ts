@@ -459,8 +459,8 @@ export class InternalPluginHost {
       sessionManager.setActiveSession(sessionToken).catch(error => {
         console.error('[InternalPluginHost] Failed to switch session:', error);
       });
-    } else if (action === 'add-account') {
-        this.addAccount();
+        } else if (action === 'switch-account') {
+      this.addAccount();
     } else if (action === 'settings') {
       console.log('[InternalPluginHost] Settings (placeholder)');
     }

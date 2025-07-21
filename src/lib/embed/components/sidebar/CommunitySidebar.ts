@@ -308,6 +308,15 @@ export class CommunitySidebar {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+  
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Hide webkit scrollbar */
+.community-list-container::-webkit-scrollbar {
+  display: none;
 }
 
 /* Community items */
@@ -364,7 +373,7 @@ export class CommunitySidebar {
 
 /* User profile section */
 .user-profile-section {
-  margin-top: var(--space-md);
+  margin-top: var(--space-xs);
   border-top: 1px solid var(--sidebar-border);
   flex-shrink: 0;
   height: var(--profile-height);
@@ -372,7 +381,7 @@ export class CommunitySidebar {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
 }
 
 .user-profile-avatar {
@@ -593,6 +602,10 @@ export class CommunitySidebar {
     margin: 0 !important;
     flex: 1 !important;
     min-height: auto !important;
+    
+    /* Hide scrollbar on mobile too */
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
   }
   
   .community-item,
@@ -621,7 +634,7 @@ export class CommunitySidebar {
     margin-top: 0 !important;
     margin-left: var(--space-md) !important;
     padding-left: var(--space-md) !important;
-    padding-bottom: var(--space-sm) !important;
+    padding-bottom: var(--space-xs) !important;
     border-top: none !important;
     border-left: 1px solid var(--sidebar-border) !important;
     height: auto !important;

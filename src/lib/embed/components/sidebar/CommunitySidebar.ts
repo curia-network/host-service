@@ -321,8 +321,8 @@ export class CommunitySidebar {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 0.25rem;
-  margin: 0 -0.25rem;
+  padding: 0.375rem 0.375rem;
+  margin: 0 -0.375rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -352,7 +352,7 @@ export class CommunitySidebar {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
   flex-shrink: 0;
   border: 0.125rem solid transparent;
@@ -373,7 +373,7 @@ export class CommunitySidebar {
   width: var(--icon-image-size);
   height: var(--icon-image-size);
   object-fit: cover;
-  border-radius: 0.625rem;
+  border-radius: var(--icon-border-radius);
   margin: 0.125rem;
   flex-shrink: 0;
 }

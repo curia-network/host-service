@@ -132,14 +132,14 @@ export class CommunityItem {
     indicator.className = 'online-indicator';
     indicator.style.cssText = `
       position: absolute;
-      top: 2px;
-      right: 2px;
-      width: 8px;
-      height: 8px;
+      top: -0.5em;
+      right: -0.5em;
+      width: 1em;
+      height: 1em;
       background: #10b981;
-      border: 1.5px solid var(--sidebar-bg-from, #f8fafc);
+      border: 0.125em solid var(--sidebar-bg-from, #f8fafc);
       border-radius: 50%;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.15);
       z-index: 10;
     `;
     

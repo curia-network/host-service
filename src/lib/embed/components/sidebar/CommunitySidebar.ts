@@ -16,6 +16,7 @@ export interface CommunitySidebarOptions {
   userProfile: UserProfile | null;
   onCommunitySelect?: (community: UserCommunityMembership) => void;
   onMenuAction?: (action: string) => void;
+  getIframeStatus?: (communityId: string) => boolean; // Simple function to check if iframe is loaded
 }
 
 export class CommunitySidebar {
@@ -72,6 +73,7 @@ export class CommunitySidebar {
       const communityItem = new CommunityItem({
         community,
         isActive: community.id === this.currentCommunityId,
+        hasIframeLoaded: this.options.getIframeStatus ? this.options.getIframeStatus(community.id) : false,
         onHover: (community, element) => {
           this.previewManager.showPreview(community, element);
         },
@@ -183,6 +185,22 @@ export class CommunitySidebar {
       const communityListContainer = this.container.querySelector('.community-list-container');
       if (communityListContainer) {
         // Clear existing items
+        communityListContainer.innerHTML = '';
+        this.renderCommunityItems(communityListContainer as HTMLElement);
+      }
+    }
+  }
+
+  /**
+   * Update online indicators after iframe status changes
+   */
+  updateOnlineIndicators(): void {
+    console.log(`[MULTI-IFRAME] [CommunitySidebar] Refreshing online indicators for ${this.communityItems.length} communities`);
+    
+    // Simple approach: re-render the community list to update indicators
+    if (this.container) {
+      const communityListContainer = this.container.querySelector('.community-list-container');
+      if (communityListContainer) {
         communityListContainer.innerHTML = '';
         this.renderCommunityItems(communityListContainer as HTMLElement);
       }

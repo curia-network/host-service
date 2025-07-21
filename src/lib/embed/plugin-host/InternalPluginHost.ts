@@ -370,7 +370,8 @@ export class InternalPluginHost {
           console.error(`[MULTI-IFRAME] Failed to switch to community ${community.id}:`, error);
         });
       },
-      onMenuAction: (action: string) => this.handleMenuAction(action)
+      onMenuAction: (action: string) => this.handleMenuAction(action),
+      getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId)
     });
   }
 
@@ -525,6 +526,8 @@ export class InternalPluginHost {
     // Update sidebar active state
     if (this.communitySidebar) {
       this.communitySidebar.updateActiveCommunity(communityId);
+      // Refresh online indicators after iframe status might have changed
+      this.communitySidebar.updateOnlineIndicators();
       console.log(`[MULTI-IFRAME] Sidebar updated to show active community: ${communityId}`);
     }
 
@@ -632,6 +635,13 @@ export class InternalPluginHost {
       'microphone *',
       'geolocation *'
     ].join('; ');
+  }
+
+  /**
+   * Simple method to check if a community has an iframe loaded
+   */
+  private hasIframeLoaded(communityId: string): boolean {
+    return this.communityIframes.has(communityId);
   }
 
   /**

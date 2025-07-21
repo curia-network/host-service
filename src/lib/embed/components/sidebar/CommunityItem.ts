@@ -19,6 +19,7 @@ export interface UserCommunityMembership {
 export interface CommunityItemOptions {
   community: UserCommunityMembership;
   isActive: boolean;
+  hasIframeLoaded?: boolean; // Simple flag: true = iframe in memory, false = not loaded
   onHover?: (community: UserCommunityMembership, element: HTMLElement) => void;
   onHoverEnd?: () => void;
   onClick?: (community: UserCommunityMembership) => void;
@@ -48,11 +49,11 @@ export class CommunityItem {
       this.addGradientFallback(item);
     }
 
-    // Role badge for admins/owners
-    this.addRoleBadge(item);
-
     // Enhanced hover effects
     this.addHoverEffects(item);
+
+    // Simple online indicator (tiny green dot if iframe loaded)
+    this.addOnlineIndicator(item);
 
     // Click handler
     if (this.options.onClick) {
@@ -95,31 +96,7 @@ export class CommunityItem {
     item.appendChild(iconSpan);
   }
 
-  private addRoleBadge(item: HTMLElement): void {
-    // Role badge for admins/owners - updated positioning
-    if (this.community.userRole === 'admin' || this.community.userRole === 'owner') {
-      const badge = document.createElement('div');
-      badge.style.cssText = `
-        position: absolute;
-        bottom: -3px;
-        right: -3px;
-        width: 18px;
-        height: 18px;
-        background: linear-gradient(135deg, #10b981, #059669);
-        border: 2px solid var(--sidebar-bg-from, #f8fafc);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 9px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-      `;
-      
-      badge.textContent = this.community.userRole === 'owner' ? '👑' : '⚡';
-      item.appendChild(badge);
-    }
-  }
+
 
   private addHoverEffects(item: HTMLElement): void {
     item.addEventListener('mouseenter', () => {
@@ -141,6 +118,32 @@ export class CommunityItem {
       // Notify parent about hover end
       this.options.onHoverEnd?.();
     });
+  }
+
+  private addOnlineIndicator(item: HTMLElement): void {
+    // Only show indicator if iframe is loaded
+    if (!this.options.hasIframeLoaded) {
+      return;
+    }
+
+    console.log(`[MULTI-IFRAME] [OnlineIndicator] Adding online dot for community: ${this.community.name}`);
+
+    const indicator = document.createElement('div');
+    indicator.className = 'online-indicator';
+    indicator.style.cssText = `
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border: 1.5px solid var(--sidebar-bg-from, #f8fafc);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+    `;
+    
+    item.appendChild(indicator);
   }
 
   /**

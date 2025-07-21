@@ -352,6 +352,24 @@ export class AuthenticationService {
   }
 
   /**
+   * Update the active community context for API requests
+   */
+  updateCommunityContext(communityId: string): void {
+    if (!this.authContext) {
+      console.error('[AuthenticationService] Cannot update community context - no auth context available');
+      return;
+    }
+
+    const previousCommunityId = this.authContext.communityId;
+    this.authContext.communityId = communityId;
+    
+    console.log(`[MULTI-IFRAME] [AuthenticationService] Community context updated:`);
+    console.log(`[MULTI-IFRAME] [AuthenticationService]   Previous: ${previousCommunityId}`);
+    console.log(`[MULTI-IFRAME] [AuthenticationService]   New: ${communityId}`);
+    console.log(`[MULTI-IFRAME] [AuthenticationService] API requests will now use community: ${communityId}`);
+  }
+
+  /**
    * Clean up listeners and resources
    */
   destroy(): void {

@@ -132,6 +132,7 @@ export class MessageRouter {
         communityId: authContext.communityId,
         userId: authContext.userId
       });
+      console.log(`[MULTI-IFRAME] [MessageRouter] API request "${message.method}" using community context: ${authContext.communityId}`);
       
       const result = await this.apiProxy.makeApiRequest({
         method: message.method as any,

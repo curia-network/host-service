@@ -94,6 +94,10 @@ export class InternalPluginHost {
   private communitySidebar: CommunitySidebar | null = null;
   private embedContainer: HTMLElement | null = null;
   
+  // Multi-iframe community switching
+  private communityIframes: Map<string, HTMLIFrameElement> = new Map();
+  private activeCommunityId: string | null = null;
+  
   // Cross-tab update throttling
   private lastCrossTabReload: number = 0;
   private readonly CROSS_TAB_RELOAD_THROTTLE = 2000; // 2 seconds
@@ -139,6 +143,8 @@ export class InternalPluginHost {
     
     // Initialize the embed
     this.initialize();
+    
+    console.log(`[MULTI-IFRAME] InternalPluginHost initialized with multi-iframe community switching support`);
   }
 
   /**
@@ -350,6 +356,7 @@ export class InternalPluginHost {
     
     // Always show sidebar - adapt content based on community count
     console.log('[InternalPluginHost] User has', communities.length, 'communities, showing navigation');
+    console.log(`[MULTI-IFRAME] Community navigation initialized - switching enabled for ${communities.length} communities`);
     
     // Create community sidebar with user profile and menu action handler
     this.communitySidebar = new CommunitySidebar({
@@ -358,7 +365,10 @@ export class InternalPluginHost {
       userProfile: profile,
       onCommunitySelect: (community) => {
         console.log('[InternalPluginHost] Community selected:', community.name);
-        // TODO: Implement community switching logic in Phase 5
+        console.log(`[MULTI-IFRAME] Community selection triggered for: ${community.id} (${community.name})`);
+        this.switchToCommunity(community.id).catch(error => {
+          console.error(`[MULTI-IFRAME] Failed to switch to community ${community.id}:`, error);
+        });
       },
       onMenuAction: (action: string) => this.handleMenuAction(action)
     });
@@ -436,13 +446,192 @@ export class InternalPluginHost {
     const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
     
     // Create forum iframe using service
-    this.iframeManager.createForumIframe(
+    const initialIframe = this.iframeManager.createForumIframe(
       this.config,
       authContext,
       iframeContainer as HTMLElement
     );
     
+    // Track the initial forum iframe for community switching
+    if (authContext.communityId) {
+      console.log(`[MULTI-IFRAME] Tracking initial forum iframe for community: ${authContext.communityId}`);
+      this.communityIframes.set(authContext.communityId, initialIframe);
+      this.activeCommunityId = authContext.communityId;
+      console.log(`[MULTI-IFRAME] Set active community to: ${authContext.communityId}`);
+    } else {
+      console.log(`[MULTI-IFRAME] No community ID in auth context - initial iframe not tracked`);
+    }
+    
     console.log('[InternalPluginHost] Forum phase setup complete');
+  }
+
+  /**
+   * Switch to a specific community with state preservation
+   * Implements the TODO for community switching
+   */
+  private async switchToCommunity(communityId: string): Promise<void> {
+    console.log(`[MULTI-IFRAME] Starting community switch to: ${communityId}`);
+    console.log(`[MULTI-IFRAME] Current active community: ${this.activeCommunityId}`);
+    console.log(`[MULTI-IFRAME] Total community iframes tracked: ${this.communityIframes.size}`);
+
+    // Don't switch if already on this community
+    if (this.activeCommunityId === communityId) {
+      console.log(`[MULTI-IFRAME] Already on community ${communityId}, skipping switch`);
+      return;
+    }
+
+    // Get auth context for building forum URLs
+    const authContext = this.authService.getAuthContext();
+    if (!authContext) {
+      console.error(`[MULTI-IFRAME] No auth context available for community switch`);
+      return;
+    }
+
+    // Get or create iframe for target community
+    let targetIframe = this.communityIframes.get(communityId);
+    
+    if (!targetIframe) {
+      console.log(`[MULTI-IFRAME] Creating new iframe for community: ${communityId}`);
+      targetIframe = this.createCommunityIframe(communityId, authContext);
+      this.communityIframes.set(communityId, targetIframe);
+      console.log(`[MULTI-IFRAME] New iframe created and stored for community: ${communityId}`);
+    } else {
+      console.log(`[MULTI-IFRAME] Using existing iframe for community: ${communityId}`);
+    }
+
+    // Hide current active iframe if exists
+    if (this.activeCommunityId) {
+      const currentIframe = this.communityIframes.get(this.activeCommunityId);
+      if (currentIframe) {
+        currentIframe.style.display = 'none';
+        console.log(`[MULTI-IFRAME] Hidden iframe for community: ${this.activeCommunityId}`);
+      }
+    }
+
+    // Show target iframe
+    targetIframe.style.display = 'block';
+    console.log(`[MULTI-IFRAME] Showing iframe for community: ${communityId}`);
+
+    // Update API proxy to route to new active iframe
+    this.apiProxy.setActiveIframe(targetIframe);
+    console.log(`[MULTI-IFRAME] API proxy updated to route to community: ${communityId}`);
+
+    // Update internal state
+    this.activeCommunityId = communityId;
+
+    // ✅ CRITICAL FIX: Update auth context so API requests use correct community
+    this.authService.updateCommunityContext(communityId);
+
+    // Update sidebar active state
+    if (this.communitySidebar) {
+      this.communitySidebar.updateActiveCommunity(communityId);
+      console.log(`[MULTI-IFRAME] Sidebar updated to show active community: ${communityId}`);
+    }
+
+    console.log(`[MULTI-IFRAME] Community switch completed successfully to: ${communityId}`);
+  }
+
+  /**
+   * Create a new forum iframe for a specific community
+   * Based on IframeManager.createForumIframe logic but for community switching
+   */
+  private createCommunityIframe(communityId: string, authContext: InternalAuthContext): HTMLIFrameElement {
+    console.log(`[MULTI-IFRAME] Creating iframe for community: ${communityId}`);
+
+    // Get iframe container (same as in switchToForum)
+    const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
+
+    // Build forum URL with community-specific parameters (similar to IframeManager.createForumIframe)
+    const forumUrl = new URL(this.iframeManager['forumUrl']); // Access private property
+    forumUrl.searchParams.set('mod', 'standalone');
+    forumUrl.searchParams.set('iframeUid', this.iframeManager.getUid());
+
+    // Add community ID to URL
+    forumUrl.searchParams.set('community', communityId);
+
+    // Theme resolution (copied from IframeManager)
+    let resolvedTheme = this.config.theme || 'light';
+    if (resolvedTheme === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        resolvedTheme = 'dark';
+      } else {
+        resolvedTheme = 'light';
+      }
+      console.log(`[MULTI-IFRAME] Resolved auto theme to: ${resolvedTheme}`);
+    }
+    
+    forumUrl.searchParams.set('cg_theme', resolvedTheme);
+    if (this.config.backgroundColor) {
+      forumUrl.searchParams.set('cg_bg_color', this.config.backgroundColor);
+    }
+
+    // Add parent URL parameter if community is pre-specified
+    if (this.config.community && this.config.parentUrl) {
+      const encodedParentUrl = encodeURIComponent(this.config.parentUrl);
+      forumUrl.searchParams.set('cg_parent_url', encodedParentUrl);
+      console.log(`[MULTI-IFRAME] Adding parent URL for community: ${this.config.parentUrl}`);
+    }
+
+    // Add external parameters to forum URL
+    if (authContext.externalParams) {
+      console.log(`[MULTI-IFRAME] Adding external parameters:`, authContext.externalParams);
+      for (const [key, value] of Object.entries(authContext.externalParams)) {
+        forumUrl.searchParams.set(key, value);
+      }
+    }
+
+    console.log(`[MULTI-IFRAME] Forum URL for community ${communityId}:`, forumUrl.toString());
+
+    // Create iframe element (copied styling from IframeManager.createForumIframe)
+    const iframe = document.createElement('iframe');
+    iframe.src = forumUrl.toString();
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.margin = '0';
+    iframe.style.padding = '0';
+    iframe.style.display = 'none'; // Start hidden
+    iframe.style.verticalAlign = 'top';
+    
+    // Apply border radius (only right side since sidebar is on left)
+    const borderRadius = this.config.borderRadius || '8px';
+    iframe.style.borderRadius = `0 ${borderRadius} ${borderRadius} 0`;
+    
+    // Set security attributes
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+    iframe.setAttribute('allow', this.getIframePermissions());
+
+    // Add data attributes for debugging
+    iframe.setAttribute('data-community-id', communityId);
+    iframe.setAttribute('data-iframe-uid', this.iframeManager.getUid());
+
+    console.log(`[MULTI-IFRAME] Iframe element created for community: ${communityId}`);
+
+    // Add to DOM
+    (iframeContainer as HTMLElement).appendChild(iframe);
+    console.log(`[MULTI-IFRAME] Iframe added to DOM for community: ${communityId}`);
+
+    return iframe;
+  }
+
+  /**
+   * Get iframe permissions (copied from IframeManager)
+   */
+  private getIframePermissions(): string {
+    return [
+      'clipboard-write *',
+      'clipboard-read *', 
+      'fullscreen *',
+      'web-share *',
+      'autoplay *',
+      'picture-in-picture *',
+      'payment *',
+      'encrypted-media *',
+      'storage-access *',
+      'camera *',
+      'microphone *',
+      'geolocation *'
+    ].join('; ');
   }
 
   /**
@@ -528,6 +717,18 @@ export class InternalPluginHost {
       this.communitySidebar.destroy();
       this.communitySidebar = null;
     }
+    
+    // Clean up community iframes
+    console.log(`[MULTI-IFRAME] Cleaning up ${this.communityIframes.size} community iframes`);
+    this.communityIframes.forEach((iframe, communityId) => {
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+      console.log(`[MULTI-IFRAME] Removed iframe for community: ${communityId}`);
+    });
+    this.communityIframes.clear();
+    this.activeCommunityId = null;
+    console.log(`[MULTI-IFRAME] Community iframe cleanup complete`);
     
     // Clear container
     this.container.innerHTML = '';

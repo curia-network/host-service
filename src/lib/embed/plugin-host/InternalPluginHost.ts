@@ -137,7 +137,8 @@ export class InternalPluginHost {
       {
         onAuthComplete: this.onMessageAuthComplete.bind(this),
         onForumInit: this.onForumInit.bind(this),
-        getAuthContext: () => this.authService.getAuthContext()
+        getAuthContext: () => this.authService.getAuthContext(),
+        onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this)
       }
     );
     
@@ -662,6 +663,46 @@ export class InternalPluginHost {
       this.addAccount();
     } else if (action === 'settings') {
       console.log('[InternalPluginHost] Settings (placeholder)');
+    }
+  }
+
+  /**
+   * Handle community switch requests from forum app
+   */
+  private async handleCommunitySwitchRequest(
+    communityId: string, 
+    options?: any
+  ): Promise<any> {
+    console.log(`[InternalPluginHost] Community switch requested: ${communityId}`, options);
+
+    try {
+      // Use existing switchToCommunity logic!
+      await this.switchToCommunity(communityId);
+
+      // Get community info for response
+      const communities = await this.authService.fetchUserCommunities();
+      const targetCommunity = communities.find(c => c.id === communityId);
+
+      if (!targetCommunity) {
+        throw new Error(`Community ${communityId} not found or not accessible`);
+      }
+
+      const result = {
+        communityInfo: {
+          id: targetCommunity.id,
+          name: targetCommunity.name,
+          logoUrl: targetCommunity.logoUrl
+        },
+        hasAccess: true,
+        switched: true
+      };
+
+      console.log(`[InternalPluginHost] Community switch completed successfully:`, result);
+      return result;
+
+    } catch (error) {
+      console.error(`[InternalPluginHost] Community switch failed:`, error);
+      throw error;
     }
   }
 

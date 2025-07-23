@@ -35,6 +35,7 @@ export interface MessageRouterCallbacks {
   onAuthComplete?: (authData: any) => Promise<void>;
   onForumInit?: () => void;
   getAuthContext?: () => InternalAuthContext | null;
+  onCommunitySwitchRequest?: (communityId: string, options?: any) => Promise<any>;
 }
 
 export class MessageRouter {
@@ -126,6 +127,24 @@ export class MessageRouter {
         throw new Error(`Unknown API method: ${message.method}`);
       }
 
+      // Handle community switching requests locally (not via API proxy)
+      if (message.method === 'switchCommunity') {
+        console.log('[MessageRouter] Handling community switch request:', message.params);
+        
+        if (!this.callbacks.onCommunitySwitchRequest) {
+          throw new Error('Community switching not supported - no callback registered');
+        }
+
+        const { communityId, options } = message.params;
+        if (!communityId) {
+          throw new Error('Missing communityId parameter for community switch');
+        }
+
+        const switchResult = await this.callbacks.onCommunitySwitchRequest(communityId, options);
+        this.sendResponse(source, message, switchResult);
+        return;
+      }
+
       // Use API proxy client to make request (bypasses CSP restrictions)
       console.log('[MessageRouter] Making API request via proxy:', message.method);
       console.log('[MessageRouter] Auth context:', {
@@ -196,7 +215,8 @@ export class MessageRouter {
       'getUserFriends', 
       'getContextData',
       'getCommunityInfo',
-      'giveRole'
+      'giveRole',
+      'switchCommunity'
     ];
     
     return supportedMethods.includes(method);

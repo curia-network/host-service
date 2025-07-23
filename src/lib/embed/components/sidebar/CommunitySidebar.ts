@@ -11,6 +11,7 @@ import { CommunityPreviewManager } from './CommunityPreview';
 import { UserProfileComponent, UserProfile } from '../profile/UserProfile';
 import { MobileBottomNav } from '../mobile/MobileBottomNav';
 import { MobileCommunityPicker } from '../mobile/MobileCommunityPicker';
+import { MobileProfileDrawer } from '../mobile/MobileProfileDrawer';
 import { injectStyles } from '../../styling';
 import { isMobileViewport, addResizeListener } from '../../utils/responsive';
 
@@ -38,6 +39,7 @@ export class CommunitySidebar {
   // Mobile-specific properties
   private mobileBottomNav: MobileBottomNav | null = null;
   private mobileCommunityPicker: MobileCommunityPicker | null = null;
+  private mobileProfileDrawer: MobileProfileDrawer | null = null;
   private isMobile: boolean = false;
   private resizeCleanup: (() => void) | null = null;
 
@@ -123,6 +125,28 @@ export class CommunitySidebar {
         }
       });
 
+      // Create mobile profile drawer
+      this.mobileProfileDrawer = new MobileProfileDrawer({
+        userProfile: this.userProfile,
+        onMenuAction: (action) => {
+          console.log('[CommunitySidebar] Profile action:', action);
+          // Hide drawer first
+          if (this.mobileProfileDrawer) {
+            this.mobileProfileDrawer.hide();
+          }
+          // Then trigger action
+          if (this.options.onMenuAction) {
+            this.options.onMenuAction(action);
+          }
+        },
+        onClose: () => {
+          console.log('[CommunitySidebar] Mobile profile drawer closed');
+          if (this.mobileProfileDrawer) {
+            this.mobileProfileDrawer.hide();
+          }
+        }
+      });
+
       // Create mobile bottom navigation
       this.mobileBottomNav = new MobileBottomNav({
         communities: this.communities,
@@ -135,9 +159,9 @@ export class CommunitySidebar {
           }
         },
         onProfileMenuClick: () => {
-          console.log('[CommunitySidebar] Mobile profile menu clicked');
-          if (this.options.onMenuAction) {
-            this.options.onMenuAction('profile-menu');
+          console.log('[CommunitySidebar] Mobile profile menu clicked - showing drawer');
+          if (this.mobileProfileDrawer) {
+            this.mobileProfileDrawer.show();
           }
         }
       });
@@ -336,16 +360,24 @@ export class CommunitySidebar {
   updateUserProfile(userProfile: UserProfile): void {
     this.userProfile = userProfile;
     
-    if (this.container && this.userProfileComponent) {
-      // Remove old profile component
-      const oldProfileElement = this.container.querySelector('.user-profile-section');
-      if (oldProfileElement) {
-        oldProfileElement.remove();
+    if (this.isMobile) {
+      // Update mobile profile drawer
+      if (this.mobileProfileDrawer) {
+        this.mobileProfileDrawer.updateUserProfile(userProfile);
       }
-      
-      // Add new profile component
-      const userSection = this.renderUserProfile();
-      this.container.appendChild(userSection);
+    } else {
+      // Update desktop profile component
+      if (this.container && this.userProfileComponent) {
+        // Remove old profile component
+        const oldProfileElement = this.container.querySelector('.user-profile-section');
+        if (oldProfileElement) {
+          oldProfileElement.remove();
+        }
+        
+        // Add new profile component
+        const userSection = this.renderUserProfile();
+        this.container.appendChild(userSection);
+      }
     }
   }
 
@@ -375,6 +407,12 @@ export class CommunitySidebar {
     if (this.mobileCommunityPicker) {
       this.mobileCommunityPicker.destroy();
       this.mobileCommunityPicker = null;
+    }
+
+    // Cleanup mobile profile drawer
+    if (this.mobileProfileDrawer) {
+      this.mobileProfileDrawer.destroy();
+      this.mobileProfileDrawer = null;
     }
 
     // Cleanup resize listener

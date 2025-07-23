@@ -2,7 +2,7 @@
  * Embed Types - All interfaces and types for the embed system
  */
 
-export type EmbedMode = 'full' | 'auth-only' | 'secure-auth' | 'community-discovery';
+export type EmbedMode = 'full' | 'auth-only' | 'secure-auth' | 'community-discovery' | 'add-session';
 
 export interface EmbedConfig {
   community?: string;

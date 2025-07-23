@@ -81,6 +81,8 @@ export class SessionManager {
    * Add a new session to the manager
    */
   public async addSession(sessionData: Omit<SessionData, 'lastAccessedAt'>): Promise<void> {
+    console.log('[SessionManager] 🔧 addSession called with:', sessionData);
+    
     try {
       const session: SessionData = {
         ...sessionData,
@@ -88,9 +90,14 @@ export class SessionManager {
         expiresAt: new Date(sessionData.expiresAt),
       };
 
+      console.log('[SessionManager] 🔧 Converted session data:', session);
+
       if (!this.validateSession(session)) {
+        console.error('[SessionManager] ❌ Session validation failed for:', session);
         throw new Error('Invalid session data provided');
       }
+
+      console.log('[SessionManager] ✅ Session validation passed');
 
       // Remove existing session with same token (if any)
       this.storage.activeSessions = this.storage.activeSessions.filter(
@@ -100,16 +107,21 @@ export class SessionManager {
       // Add new session
       this.storage.activeSessions.push(session);
 
-      // Set as active if it's the first session
-      if (!this.storage.activeSessionToken) {
+      // Set as active if it's the first session OR if this session should be active
+      if (!this.storage.activeSessionToken || session.isActive) {
         this.storage.activeSessionToken = session.sessionToken;
+        console.log('[SessionManager] Session set as active:', session.sessionToken);
       }
+
+      console.log('[SessionManager] 🔧 Sessions before save:', this.storage.activeSessions.length);
+      console.log('[SessionManager] 🔧 Active token before save:', this.storage.activeSessionToken);
 
       this.saveToStorage();
       this.broadcastChange();
       this.notifyListeners();
 
-      console.log('[SessionManager] Session added:', session.identityType, session.userId);
+      console.log('[SessionManager] ✅ Session added successfully:', session.identityType, session.userId);
+      console.log('[SessionManager] 🔧 Total sessions now:', this.storage.activeSessions.length);
     } catch (error) {
       console.error('[SessionManager] Failed to add session:', error);
       throw error;
@@ -555,6 +567,10 @@ export class SessionManager {
           ...existing,
           lastAccessedAt: session.lastAccessedAt, // Keep local access time
         });
+      } else {
+        // 🔥 FIX: Keep new sessions that aren't in database yet
+        console.log('[SessionManager] 🔧 Preserving local session not yet in database:', session.sessionToken);
+        sessionMap.set(session.sessionToken, session);
       }
     }
 

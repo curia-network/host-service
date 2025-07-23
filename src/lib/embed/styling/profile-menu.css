@@ -8,8 +8,8 @@
   position: fixed;
   min-width: 280px;
   max-width: 320px;
-  background: var(--preview-bg);
-  border: 1px solid var(--preview-border);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 
@@ -21,6 +21,25 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   backdrop-filter: blur(12px);
+  
+  /* Define CSS variables locally since menu is rendered outside .curia-community-nav scope */
+  --preview-bg: rgba(255, 255, 255, 0.95);
+  --preview-border: rgba(148, 163, 184, 0.2);
+  --preview-text: #1f2937;
+  --preview-text-muted: #6b7280;
+  --item-hover-bg: rgba(255, 255, 255, 0.95);
+}
+
+/* Dark theme support for profile menu */
+[data-theme="dark"] .user-profile-menu {
+  background: rgba(31, 41, 55, 0.95);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  
+  --preview-bg: rgba(31, 41, 55, 0.95);
+  --preview-border: rgba(75, 85, 99, 0.3);
+  --preview-text: #f9fafb;
+  --preview-text-muted: #9ca3af;
+  --item-hover-bg: rgba(55, 65, 81, 0.8);
 }
 
 .user-profile-menu.show {
@@ -113,6 +132,71 @@
   letter-spacing: 0.5px;
   margin-bottom: 12px;
   padding: 0 4px;
+}
+
+/* Session Management Styles */
+.profile-menu-sessions {
+  margin: 16px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--preview-border);
+}
+
+.profile-menu-section-label {
+  color: var(--preview-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.profile-menu-session {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-menu-session:hover {
+  background: var(--item-hover-bg);
+}
+
+.profile-session-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-session-name {
+  color: var(--preview-text);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-session-type {
+  color: var(--preview-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-menu-account {

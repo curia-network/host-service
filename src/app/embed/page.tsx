@@ -149,6 +149,29 @@ const EmbedContent: React.FC = () => {
     }
   }, []);
 
+  // Send add session completion message to parent
+  const sendAddSessionMessage = useCallback((sessionData: any) => {
+    const message = {
+      type: 'curia-add-session-complete',
+      sessionData,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('[Embed] DEBUG - Add session completion:', sessionData);
+    console.log('[Embed] DEBUG - Add session message to send:', message);
+    
+    // Send to parent window
+    if (window.parent && window.parent !== window) {
+      console.log('[Embed] DEBUG - Sending add session PostMessage to parent...');
+      window.parent.postMessage(message, '*');
+      console.log('[Embed] DEBUG - Add session PostMessage sent successfully');
+    } else {
+      console.log('[Embed] DEBUG - WARNING: No parent window for add session message');
+    }
+  }, []);
+
+
+
   // Step transition handlers
   const handleLoadingComplete = useCallback(() => {
     setCurrentStep('session-check');
@@ -176,6 +199,13 @@ const EmbedContent: React.FC = () => {
       setProfileData(sessionProfileData);
       console.log('[Embed] Profile data populated from session:', sessionProfileData);
       
+      // Check for add-session mode - skip existing session and force new auth
+      if (config.mode === 'add-session') {
+        console.log('[Embed] Add session mode: skipping existing session, forcing new authentication');
+        setCurrentStep('authentication');
+        return;
+      }
+
       // Check for auth-only mode - skip community selection entirely
       if (config.mode === 'auth-only') {
         console.log(`[Embed] ${config.mode} mode: sending auth-complete for existing session`);
@@ -213,6 +243,34 @@ const EmbedContent: React.FC = () => {
   const handleAuthenticated = useCallback((data: ProfileData) => {
     setProfileData(data);
     
+    // Check for add-session mode - continue through auth flow but skip community selection
+    if (config.mode === 'add-session') {
+      console.log(`[Embed] ${config.mode} mode: continuing auth flow for ${data.type}`);
+      if (data.type === 'anonymous') {
+        // Anonymous users: send session data immediately (no profile preview needed)
+        console.log('[Embed] Add session mode: sending session data for anonymous user');
+        const sessionData = {
+          sessionToken: data.sessionToken,
+          userId: data.userId || data.address || `fallback_${Date.now()}`,
+          identityType: data.type,
+          walletAddress: undefined,
+          ensName: undefined,
+          upAddress: undefined,
+          name: data.name,
+          profileImageUrl: data.avatar,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        sendAddSessionMessage(sessionData);
+        setCurrentStep('auth-complete');
+        return;
+      } else {
+        // Wallet users: continue to profile preview
+        console.log('[Embed] Add session mode: continuing to profile preview for wallet user');
+        setCurrentStep('profile-preview');
+        return;
+      }
+    }
+
     // Check for auth-only mode - skip community selection entirely
     if (config.mode === 'auth-only') {
       console.log(`[Embed] ${config.mode} mode: sending auth-complete immediately`);
@@ -241,7 +299,7 @@ const EmbedContent: React.FC = () => {
       console.log('[Embed] Wallet connected: showing profile preview');
       setCurrentStep('profile-preview');
     }
-  }, [config.mode, sendAuthCompleteMessage]);
+  }, [config.mode, sendAuthCompleteMessage, sendAddSessionMessage]);
 
   const handleProfileContinue = useCallback((updatedProfileData?: ProfileData) => {
     // Update ProfileData with database user information if provided from signing
@@ -250,6 +308,26 @@ const EmbedContent: React.FC = () => {
       setProfileData(updatedProfileData);
     }
     
+    // Check for add-session mode - send session data after profile preview
+    if (config.mode === 'add-session') {
+      console.log(`[Embed] ${config.mode} mode: sending session data after profile preview`);
+      const finalProfileData = updatedProfileData || profileData;
+      const sessionData = {
+        sessionToken: finalProfileData?.sessionToken,
+        userId: finalProfileData?.userId || finalProfileData?.address || `fallback_${Date.now()}`,
+        identityType: finalProfileData?.type,
+        walletAddress: finalProfileData?.type === 'ens' ? finalProfileData?.address : undefined,
+        ensName: finalProfileData?.type === 'ens' ? finalProfileData?.domain : undefined,
+        upAddress: finalProfileData?.type === 'universal_profile' ? finalProfileData?.address : undefined,
+        name: finalProfileData?.name,
+        profileImageUrl: finalProfileData?.avatar,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      sendAddSessionMessage(sessionData);
+      setCurrentStep('auth-complete');
+      return;
+    }
+
     // Check for auth-only mode - skip community selection entirely  
     if (config.mode === 'auth-only') {
       console.log(`[Embed] ${config.mode} mode: sending auth-complete after profile preview`);
@@ -272,7 +350,7 @@ const EmbedContent: React.FC = () => {
     
     // Normal flow: Skip signature verification - signing happens in profile preview
     setCurrentStep('community-selection');
-  }, [config.mode, profileData, sendAuthCompleteMessage]);
+  }, [config.mode, profileData, sendAuthCompleteMessage, sendAddSessionMessage]);
 
   const handleSwitchAccount = useCallback(() => {
     setProfileData(null);

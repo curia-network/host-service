@@ -98,6 +98,10 @@ export class InternalPluginHost {
   private discoveryModal: HTMLElement | null = null;
   private discoveryIframe: HTMLIFrameElement | null = null;
   
+  // Add Session Modal State
+  private addSessionModal: HTMLElement | null = null;
+  private addSessionIframe: HTMLIFrameElement | null = null;
+  
   // Multi-iframe community switching
   private communityIframes: Map<string, HTMLIFrameElement> = new Map();
   private activeCommunityId: string | null = null;
@@ -147,7 +151,8 @@ export class InternalPluginHost {
         onForumInit: this.onForumInit.bind(this),
         getAuthContext: () => this.authService.getAuthContext(),
         onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this),
-        onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this)
+        onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this),
+        onAddSessionComplete: this.handleAddSessionComplete.bind(this)
       }
     );
     
@@ -755,7 +760,9 @@ export class InternalPluginHost {
   private handleMenuAction(action: string): void {
     console.log('[InternalPluginHost] Menu action:', action);
     
-    if (action === 'sign-out') {
+    if (action === 'add-session') {
+      this.openAddSessionModal();
+    } else if (action === 'sign-out') {
       this.authService.signOut();
     } else if (action.startsWith('switch-session:')) {
       const sessionToken = action.replace('switch-session:', '');
@@ -763,8 +770,9 @@ export class InternalPluginHost {
       sessionManager.setActiveSession(sessionToken).catch(error => {
         console.error('[InternalPluginHost] Failed to switch session:', error);
       });
-        } else if (action === 'switch-account') {
-      this.addAccount();
+    } else if (action === 'switch-account') {
+      // DEPRECATED: Use session switching in profile menu instead
+      console.log('[InternalPluginHost] Switch account deprecated - use session switching');
     } else if (action === 'settings') {
       console.log('[InternalPluginHost] Settings (placeholder)');
     }
@@ -934,6 +942,161 @@ export class InternalPluginHost {
       console.log('[InternalPluginHost] Discovery-to-community switch completed');
     } catch (error) {
       console.error('[InternalPluginHost] Discovery community switch failed:', error);
+    }
+  }
+
+  /**
+   * Handle add session completion from add-session iframe
+   */
+  private async handleAddSessionComplete(sessionMessage: any): Promise<void> {
+    console.log('[InternalPluginHost] Add session completed:', sessionMessage);
+    
+    const { sessionData } = sessionMessage;
+    
+    try {
+      // 1. Close add session modal
+      this.closeAddSessionModal();
+      
+      // 2. Check if session already exists (profile components create sessions during auth)
+      const existingSession = sessionManager.getSessionByToken(sessionData.sessionToken);
+      
+      if (existingSession) {
+        // Session already exists, just activate it
+        console.log('[InternalPluginHost] 🔧 Session already exists, just activating:', sessionData.sessionToken);
+        await sessionManager.setActiveSession(sessionData.sessionToken);
+      } else {
+        // Session doesn't exist, create it
+        console.log('[InternalPluginHost] 🔧 Creating new session:', sessionData.sessionToken);
+        await sessionManager.addSession({
+          sessionToken: sessionData.sessionToken,
+          userId: sessionData.userId,
+          identityType: sessionData.identityType,
+          walletAddress: sessionData.walletAddress,
+          ensName: sessionData.ensName,
+          upAddress: sessionData.upAddress,
+          name: sessionData.name,
+          profileImageUrl: sessionData.profileImageUrl,
+          expiresAt: new Date(sessionData.expiresAt),
+          isActive: true,
+        });
+      }
+      
+      console.log('[InternalPluginHost] New session activated');
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to handle new session:', error);
+    }
+  }
+
+  /**
+   * Open add session modal with add-session iframe
+   */
+  private openAddSessionModal(): void {
+    console.log('[InternalPluginHost] Opening add session modal');
+    
+    // Close existing modal if open
+    this.closeAddSessionModal();
+    
+    // Create modal overlay
+    this.addSessionModal = document.createElement('div');
+    this.addSessionModal.className = 'curia-add-session-modal-overlay';
+    this.addSessionModal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      backdrop-filter: blur(4px);
+    `;
+    
+    // Create modal content container
+    const modalContent = document.createElement('div');
+    modalContent.className = 'curia-add-session-modal-content';
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      height: 80%;
+      max-height: 700px;
+      position: relative;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    `;
+    
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '×';
+    closeButton.style.cssText = `
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.1);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    `;
+    
+    closeButton.addEventListener('mouseenter', () => {
+      closeButton.style.background = 'rgba(0, 0, 0, 0.2)';
+    });
+    closeButton.addEventListener('mouseleave', () => {
+      closeButton.style.background = 'rgba(0, 0, 0, 0.1)';
+    });
+    closeButton.addEventListener('click', () => {
+      this.closeAddSessionModal();
+    });
+    
+    // Create add session iframe
+    this.addSessionIframe = document.createElement('iframe');
+    this.addSessionIframe.src = `${window.location.origin}/embed?mode=add-session`;
+    this.addSessionIframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+    `;
+    this.addSessionIframe.allow = getIframePermissions();
+    
+    // Assemble modal
+    modalContent.appendChild(closeButton);
+    modalContent.appendChild(this.addSessionIframe);
+    this.addSessionModal.appendChild(modalContent);
+    
+    // Close modal on overlay click
+    this.addSessionModal.addEventListener('click', (e) => {
+      if (e.target === this.addSessionModal) {
+        this.closeAddSessionModal();
+      }
+    });
+    
+    // Add to DOM
+    document.body.appendChild(this.addSessionModal);
+    
+    console.log('[InternalPluginHost] Add session modal opened successfully');
+  }
+
+  /**
+   * Close add session modal and cleanup
+   */
+  private closeAddSessionModal(): void {
+    if (this.addSessionModal) {
+      console.log('[InternalPluginHost] Closing add session modal');
+      document.body.removeChild(this.addSessionModal);
+      this.addSessionModal = null;
+      this.addSessionIframe = null;
     }
   }
 

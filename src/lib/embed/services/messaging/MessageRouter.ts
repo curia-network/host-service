@@ -37,6 +37,7 @@ export interface MessageRouterCallbacks {
   getAuthContext?: () => InternalAuthContext | null;
   onCommunitySwitchRequest?: (communityId: string, options?: any) => Promise<any>;
   onCommunityDiscoveryComplete?: (discoveryData: any) => Promise<void>;
+  onAddSessionComplete?: (sessionData: any) => Promise<void>;
 }
 
 export class MessageRouter {
@@ -91,6 +92,14 @@ export class MessageRouter {
     if (event.data.type === 'curia-community-discovery-complete') {
       if (this.callbacks.onCommunityDiscoveryComplete) {
         await this.callbacks.onCommunityDiscoveryComplete(event.data);
+      }
+      return;
+    }
+
+    // Handle add session completion from embed iframe
+    if (event.data.type === 'curia-add-session-complete') {
+      if (this.callbacks.onAddSessionComplete) {
+        await this.callbacks.onAddSessionComplete(event.data);
       }
       return;
     }

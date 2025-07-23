@@ -4,9 +4,11 @@
  * 
  * Extracted from InternalPluginHost.ts for better maintainability
  * Handles: avatar display, identity indicators, profile menu interactions
+ * Enhanced with SessionManager integration for multi-account support
  */
 
 import { getGradientClass, getGradientStyle, getUserInitials, getIdentityIcon } from '../../styling';
+import { sessionManager, SessionData } from '../../../SessionManager';
 
 export interface UserProfile {
   userId: string;
@@ -29,10 +31,46 @@ export class UserProfileComponent {
   private options: UserProfileOptions;
   private element: HTMLElement | null = null;
   private profileMenuElement: HTMLElement | null = null;
+  
+  // SessionManager integration
+  private sessionManager = sessionManager;
+  private sessionSubscription: (() => void) | null = null;
+  private allSessions: SessionData[] = [];
 
   constructor(options: UserProfileOptions) {
     this.userProfile = options.userProfile;
     this.options = options;
+    
+    // Subscribe to session changes for reactive menu updates
+    this.sessionSubscription = this.sessionManager.subscribe((sessions, activeToken, activeSession) => {
+      this.allSessions = sessions;
+      this.refreshMenu();
+    });
+    
+    // Initial load of sessions
+    this.allSessions = this.sessionManager.getAllSessions();
+  }
+  
+  /**
+   * Refresh menu when sessions change
+   */
+  private refreshMenu(): void {
+    if (this.profileMenuElement && this.profileMenuElement.classList.contains('show')) {
+      // Menu is currently open, update its content with fresh session data
+      console.log('[UserProfile] 🔧 Refreshing menu content with updated session data');
+      
+      const headerHtml = this.createActiveSessionHeader();
+      const sessionsHtml = this.createAvailableSessions();
+      const actionsHtml = this.createMenuActions();
+      
+      this.profileMenuElement.innerHTML = headerHtml + sessionsHtml + actionsHtml;
+      
+      // Re-attach event handlers since innerHTML replaced the content
+      this.attachMenuHandlers(this.profileMenuElement);
+      
+      console.log('[UserProfile] ✅ Menu content refreshed');
+    }
+    // If menu is not open, do nothing - it will get fresh data when opened next time
   }
 
   render(): HTMLElement {
@@ -165,42 +203,133 @@ export class UserProfileComponent {
   }
 
   private createUserProfileMenu(triggerElement: HTMLElement): HTMLElement {
-    // This would be a complex method, so for now I'll create a placeholder
-    // In a more complete refactoring, this would be extracted to a separate ProfileMenu component
     const menu = document.createElement('div');
     menu.className = 'user-profile-menu';
     
     // Position menu relative to trigger element
     this.positionMenu(menu, triggerElement);
 
-    // Add rich menu content with avatar and detailed identity info
-    const userName = this.userProfile.name || 'Anonymous User';
-    const hasProfileImage = !!this.userProfile.profilePictureUrl;
+    // Build menu sections
+    const headerHtml = this.createActiveSessionHeader();
+    const sessionsHtml = this.createAvailableSessions();
+    const actionsHtml = this.createMenuActions();
+    
+    menu.innerHTML = headerHtml + sessionsHtml + actionsHtml;
+
+    // Enhanced click handlers for sessions and actions
+    this.attachMenuHandlers(menu);
+
+    return menu;
+  }
+
+  /**
+   * Create the active session header section
+   */
+  private createActiveSessionHeader(): string {
+    // 🔥 FIX: Get current active session from SessionManager instead of static userProfile
+    const activeSession = this.sessionManager.getActiveSession();
+    
+    if (!activeSession) {
+      // Fallback to static userProfile if no active session
+      const userName = this.userProfile.name || 'Anonymous User';
+      const hasProfileImage = !!this.userProfile.profilePictureUrl;
+      const gradientClass = this.getGradientClass(userName);
+      const gradientStyle = this.getGradientStyle(gradientClass);
+      
+      return `
+        <div class="profile-menu-header">
+          <div class="profile-menu-avatar" style="background: ${hasProfileImage ? 'transparent' : gradientStyle}">
+            ${hasProfileImage ? 
+              `<img src="${this.userProfile.profilePictureUrl}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+              `<span style="color: white; font-weight: 600; font-size: 18px;">${this.getUserInitials(userName)}</span>`
+            }
+          </div>
+          <div class="profile-menu-info">
+            <h4>${userName}</h4>
+            <p>${this.getIdentityLabel()} • Active</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Use active session data
+    const userName = activeSession.name || 'Anonymous User';
+    const hasProfileImage = !!activeSession.profileImageUrl;
     const gradientClass = this.getGradientClass(userName);
     const gradientStyle = this.getGradientStyle(gradientClass);
     
-    menu.innerHTML = `
+    return `
       <div class="profile-menu-header">
         <div class="profile-menu-avatar" style="background: ${hasProfileImage ? 'transparent' : gradientStyle}">
           ${hasProfileImage ? 
-            `<img src="${this.userProfile.profilePictureUrl}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+            `<img src="${activeSession.profileImageUrl}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
             `<span style="color: white; font-weight: 600; font-size: 18px;">${this.getUserInitials(userName)}</span>`
           }
         </div>
         <div class="profile-menu-info">
           <h4>${userName}</h4>
-          <p>${this.getIdentityLabel()}</p>
+          <p>${this.getIdentityTypeLabel(activeSession.identityType)} • Active</p>
         </div>
       </div>
+    `;
+  }
+
+  /**
+   * Create the available sessions section
+   */
+  private createAvailableSessions(): string {
+    const activeToken = this.sessionManager.getActiveToken();
+    const inactiveSessions = this.allSessions.filter(session => 
+      session.sessionToken !== activeToken
+    );
+    
+    if (inactiveSessions.length === 0) {
+      return ''; // No available sessions section
+    }
+    
+    const sessionsHtml = inactiveSessions.map(session => {
+      const sessionName = session.name || 'Unknown User';
+      const hasImage = !!session.profileImageUrl;
+      const gradientClass = this.getGradientClass(sessionName);
+      const gradientStyle = this.getGradientStyle(gradientClass);
       
+      return `
+        <div class="profile-menu-session" data-action="switch-session" data-token="${session.sessionToken}">
+          <div class="profile-session-avatar" style="background: ${hasImage ? 'transparent' : gradientStyle}">
+            ${hasImage ? 
+              `<img src="${session.profileImageUrl}" alt="${sessionName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">` :
+              `<span style="color: white; font-weight: 600; font-size: 12px;">${this.getUserInitials(sessionName)}</span>`
+            }
+          </div>
+          <div class="profile-session-info">
+            <div class="profile-session-name">${sessionName}</div>
+            <div class="profile-session-type">${this.getIdentityTypeLabel(session.identityType)}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="profile-menu-sessions">
+        <div class="profile-menu-section-label">Available Accounts</div>
+        ${sessionsHtml}
+      </div>
+    `;
+  }
+
+  /**
+   * Create the menu actions section  
+   */
+  private createMenuActions(): string {
+    return `
       <div class="profile-menu-actions">
+        <button class="profile-menu-action" data-action="add-session">
+          <div class="profile-menu-action-icon">➕</div>
+          <span>Add Another Account</span>
+        </button>
         <button class="profile-menu-action" data-action="settings">
           <div class="profile-menu-action-icon">⚙️</div>
           <span>Settings</span>
-        </button>
-        <button class="profile-menu-action" data-action="switch-account">
-          <div class="profile-menu-action-icon">🔄</div>
-          <span>Switch Account</span>
         </button>
         <button class="profile-menu-action" data-action="sign-out">
           <div class="profile-menu-action-icon">🚪</div>
@@ -208,17 +337,62 @@ export class UserProfileComponent {
         </button>
       </div>
     `;
+  }
 
-    // Add click handlers for menu actions
+  /**
+   * Get identity type label for display
+   */
+  private getIdentityTypeLabel(identityType: 'ens' | 'universal_profile' | 'anonymous'): string {
+    switch (identityType) {
+      case 'ens':
+        return 'ENS';
+      case 'universal_profile':
+        return 'Universal Profile';
+      case 'anonymous':
+        return 'Guest';
+      default:
+        return 'User';
+    }
+  }
+
+  /**
+   * Attach enhanced click handlers for menu interactions
+   */
+  private attachMenuHandlers(menu: HTMLElement): void {
     menu.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      const action = target.closest('[data-action]')?.getAttribute('data-action');
-      if (action && this.options.onMenuAction) {
+      const actionElement = target.closest('[data-action]') as HTMLElement;
+      
+      if (!actionElement) return;
+      
+      const action = actionElement.getAttribute('data-action');
+      const token = actionElement.getAttribute('data-token');
+      
+      if (action === 'switch-session' && token) {
+        // Handle session switching directly
+        this.handleSessionSwitch(token);
+      } else if (action && this.options.onMenuAction) {
+        // Handle other actions through parent callback
         this.options.onMenuAction(action);
       }
     });
+  }
 
-    return menu;
+  /**
+   * Handle session switching
+   */
+  private async handleSessionSwitch(sessionToken: string): Promise<void> {
+    try {
+      console.log('[UserProfileComponent] Switching to session:', sessionToken);
+      await this.sessionManager.setActiveSession(sessionToken);
+      
+      // Close menu after switching (menu will refresh automatically via subscription)
+      this.refreshMenu();
+      
+      console.log('[UserProfileComponent] Session switch completed');
+    } catch (error) {
+      console.error('[UserProfileComponent] Failed to switch session:', error);
+    }
   }
 
   private positionMenu(menu: HTMLElement, triggerElement: HTMLElement): void {
@@ -307,6 +481,13 @@ export class UserProfileComponent {
    * Cleanup method for removing event listeners and DOM elements
    */
   destroy(): void {
+    // Cleanup session subscription
+    if (this.sessionSubscription) {
+      this.sessionSubscription();
+      this.sessionSubscription = null;
+    }
+    
+    // Cleanup DOM elements
     if (this.profileMenuElement) {
       this.profileMenuElement.remove();
       this.profileMenuElement = null;

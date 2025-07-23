@@ -2,11 +2,13 @@
  * Embed Types - All interfaces and types for the embed system
  */
 
+export type EmbedMode = 'full' | 'auth-only' | 'secure-auth' | 'community-discovery';
+
 export interface EmbedConfig {
   community?: string;
   theme: 'light' | 'dark' | 'auto';
   backgroundColor?: string;
-  mode?: 'full' | 'auth-only' | 'secure-auth';
+  mode?: EmbedMode;
 }
 
 export type EmbedStep = 

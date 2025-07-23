@@ -17,6 +17,7 @@ export interface CommunitySidebarOptions {
   onCommunitySelect?: (community: UserCommunityMembership) => void;
   onMenuAction?: (action: string) => void;
   getIframeStatus?: (communityId: string) => boolean; // Simple function to check if iframe is loaded
+  onPlusButtonClick?: () => void; // Callback for plus button click (community discovery)
 }
 
 export class CommunitySidebar {
@@ -134,10 +135,12 @@ export class CommunitySidebar {
       plusIcon.style.transform = '';
     });
     
-    // Placeholder click handler (no functionality yet)
+    // Click handler for community discovery
     plusIcon.addEventListener('click', () => {
-      console.log('[CommunitySidebar] Plus icon clicked - discovery/creation placeholder');
-      // TODO: Implement community discovery/creation in future
+      console.log('[CommunitySidebar] Plus icon clicked - opening community discovery');
+      if (this.options.onPlusButtonClick) {
+        this.options.onPlusButtonClick();
+      }
     });
     
     container.appendChild(plusIcon);

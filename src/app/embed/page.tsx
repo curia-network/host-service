@@ -29,7 +29,7 @@ import {
   AuthCompleteStep
 } from '@/components/embed';
 import { EmbedTopBar } from '@/components/embed/EmbedTopBar';
-import { EmbedConfig, EmbedStep, ProfileData } from '@/types/embed';
+import { EmbedConfig, EmbedStep, ProfileData, EmbedMode } from '@/types/embed';
 import { ApiProxyServer } from '@curia_/iframe-api-proxy';
 import { sessionManager } from '@/lib/SessionManager';
 
@@ -70,7 +70,7 @@ const EmbedContent: React.FC = () => {
     community: searchParams.get('community') || undefined,
     theme: (searchParams.get('theme') as 'light' | 'dark' | 'auto') || 'light',
     backgroundColor: searchParams.get('background_color') || undefined,
-    mode: (searchParams.get('mode') as 'full' | 'auth-only' | 'secure-auth') || 'full',
+    mode: (searchParams.get('mode') as EmbedMode) || 'full',
   };
 
   // Extract external parameters from URL
@@ -124,6 +124,30 @@ const EmbedContent: React.FC = () => {
       console.log('[Embed] DEBUG - WARNING: No parent window or same window, cannot send message');
     }
   }, [config.mode, externalParams, decodedParentUrl]);
+
+  // Send community discovery completion message to parent
+  const sendCommunityDiscoveryMessage = useCallback((userId: string, communityId: string, sessionToken?: string, identityType?: string) => {
+    const message = {
+      type: 'curia-community-discovery-complete',
+      userId,
+      communityId,
+      sessionToken,
+      identityType,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('[Embed] DEBUG - Community discovery completion:', { userId, communityId, sessionToken });
+    console.log('[Embed] DEBUG - Discovery message to send:', message);
+    
+    // Send to parent window
+    if (window.parent && window.parent !== window) {
+      console.log('[Embed] DEBUG - Sending discovery PostMessage to parent...');
+      window.parent.postMessage(message, '*');
+      console.log('[Embed] DEBUG - Discovery PostMessage sent successfully');
+    } else {
+      console.log('[Embed] DEBUG - WARNING: No parent window for discovery message');
+    }
+  }, []);
 
   // Step transition handlers
   const handleLoadingComplete = useCallback(() => {
@@ -295,6 +319,14 @@ const EmbedContent: React.FC = () => {
       }
       
       console.log('[Embed] DEBUG - Sending auth complete with userId:', userId);
+      
+      // Check for community-discovery mode
+      if (config.mode === 'community-discovery') {
+        console.log('[Embed] Community discovery mode - sending discovery completion message');
+        sendCommunityDiscoveryMessage(userId, communityId, sessionToken, profileData?.type);
+        setCurrentStep('auth-complete');
+        return;
+      }
       
       // Send auth complete message to parent
       sendAuthCompleteMessage(userId, communityId, sessionToken, profileData?.type);

@@ -94,6 +94,10 @@ export class InternalPluginHost {
   private communitySidebar: CommunitySidebar | null = null;
   private embedContainer: HTMLElement | null = null;
   
+  // Discovery Modal State
+  private discoveryModal: HTMLElement | null = null;
+  private discoveryIframe: HTMLIFrameElement | null = null;
+  
   // Multi-iframe community switching
   private communityIframes: Map<string, HTMLIFrameElement> = new Map();
   private activeCommunityId: string | null = null;
@@ -142,7 +146,8 @@ export class InternalPluginHost {
         onAuthComplete: this.onMessageAuthComplete.bind(this),
         onForumInit: this.onForumInit.bind(this),
         getAuthContext: () => this.authService.getAuthContext(),
-        onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this)
+        onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this),
+        onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this)
       }
     );
     
@@ -376,7 +381,8 @@ export class InternalPluginHost {
         });
       },
       onMenuAction: (action: string) => this.handleMenuAction(action),
-      getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId)
+      getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId),
+      onPlusButtonClick: () => this.openDiscoveryModal()
     });
 
     // Start initial 5-second polling to catch immediate community joins
@@ -791,6 +797,140 @@ export class InternalPluginHost {
     } catch (error) {
       console.error(`[InternalPluginHost] Community switch failed:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Open discovery modal with community discovery iframe
+   */
+  private openDiscoveryModal(): void {
+    console.log('[InternalPluginHost] Opening community discovery modal');
+    
+    // Close existing modal if open
+    this.closeDiscoveryModal();
+    
+    // Create modal overlay
+    this.discoveryModal = document.createElement('div');
+    this.discoveryModal.className = 'curia-discovery-modal-overlay';
+    this.discoveryModal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      backdrop-filter: blur(4px);
+    `;
+    
+    // Create modal content container
+    const modalContent = document.createElement('div');
+    modalContent.className = 'curia-discovery-modal-content';
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      height: 80%;
+      max-height: 700px;
+      position: relative;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    `;
+    
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '×';
+    closeButton.style.cssText = `
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.1);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    `;
+    
+    closeButton.addEventListener('mouseenter', () => {
+      closeButton.style.background = 'rgba(0, 0, 0, 0.2)';
+    });
+    closeButton.addEventListener('mouseleave', () => {
+      closeButton.style.background = 'rgba(0, 0, 0, 0.1)';
+    });
+    closeButton.addEventListener('click', () => {
+      this.closeDiscoveryModal();
+    });
+    
+    // Create discovery iframe
+    this.discoveryIframe = document.createElement('iframe');
+    this.discoveryIframe.src = `${window.location.origin}/embed?mode=community-discovery`;
+    this.discoveryIframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+    `;
+    this.discoveryIframe.allow = getIframePermissions();
+    
+    // Assemble modal
+    modalContent.appendChild(closeButton);
+    modalContent.appendChild(this.discoveryIframe);
+    this.discoveryModal.appendChild(modalContent);
+    
+    // Close modal on overlay click
+    this.discoveryModal.addEventListener('click', (e) => {
+      if (e.target === this.discoveryModal) {
+        this.closeDiscoveryModal();
+      }
+    });
+    
+    // Add to DOM
+    document.body.appendChild(this.discoveryModal);
+    
+    console.log('[InternalPluginHost] Discovery modal opened successfully');
+  }
+
+  /**
+   * Close discovery modal and cleanup
+   */
+  private closeDiscoveryModal(): void {
+    if (this.discoveryModal) {
+      console.log('[InternalPluginHost] Closing discovery modal');
+      document.body.removeChild(this.discoveryModal);
+      this.discoveryModal = null;
+      this.discoveryIframe = null;
+    }
+  }
+
+  /**
+   * Handle community discovery completion from discovery iframe
+   */
+  private async handleCommunityDiscoveryComplete(discoveryData: any): Promise<void> {
+    console.log('[InternalPluginHost] Community discovery completed:', discoveryData);
+    
+    const { communityId } = discoveryData;
+    
+    try {
+      // 1. Close discovery modal
+      this.closeDiscoveryModal();
+      
+      // 2. Switch to selected community using existing infrastructure
+      await this.switchToCommunity(communityId);
+      
+      console.log('[InternalPluginHost] Discovery-to-community switch completed');
+    } catch (error) {
+      console.error('[InternalPluginHost] Discovery community switch failed:', error);
     }
   }
 

@@ -36,6 +36,7 @@ export interface MessageRouterCallbacks {
   onForumInit?: () => void;
   getAuthContext?: () => InternalAuthContext | null;
   onCommunitySwitchRequest?: (communityId: string, options?: any) => Promise<any>;
+  onCommunityDiscoveryComplete?: (discoveryData: any) => Promise<void>;
 }
 
 export class MessageRouter {
@@ -82,6 +83,14 @@ export class MessageRouter {
     if (event.data.type === 'curia-auth-complete') {
       if (this.callbacks.onAuthComplete) {
         await this.callbacks.onAuthComplete(event.data);
+      }
+      return;
+    }
+
+    // Handle community discovery completion from embed iframe
+    if (event.data.type === 'curia-community-discovery-complete') {
+      if (this.callbacks.onCommunityDiscoveryComplete) {
+        await this.callbacks.onCommunityDiscoveryComplete(event.data);
       }
       return;
     }

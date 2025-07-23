@@ -5,14 +5,27 @@
 
 export * from './utils';
 
+// Import CSS files as text strings (esbuild loader: '.css': 'text')
+import stylesCSS from './styles.css';
+import sidebarCSS from './sidebar.css';
+import previewCSS from './preview.css';
+import profileMenuCSS from './profile-menu.css';
+import lightThemeCSS from './themes/light.css';
+import darkThemeCSS from './themes/dark.css';
+
 /**
  * Get all CSS content as a string
- * This will be replaced with actual CSS content when we update the plugin host
  */
 function getCSSContent(): string {
-  // For now, return empty string - we'll inject this inline in the refactored component
-  // TODO: Replace with actual CSS bundling when we have proper build setup
-  return '';
+  // Combine all CSS files in the correct order
+  return [
+    stylesCSS,      // Main CSS entry point
+    sidebarCSS,     // Base sidebar component styles
+    previewCSS,     // Community preview styles
+    profileMenuCSS, // Profile menu styles
+    lightThemeCSS,  // Light theme (default)
+    darkThemeCSS    // Dark theme overrides
+  ].join('\n\n');
 }
 
 /**

@@ -9,6 +9,7 @@
 import { CommunityItem, UserCommunityMembership } from './CommunityItem';
 import { CommunityPreviewManager } from './CommunityPreview';
 import { UserProfileComponent, UserProfile } from '../profile/UserProfile';
+import { injectStyles } from '../../styling';
 
 export interface CommunitySidebarOptions {
   communities: UserCommunityMembership[];
@@ -43,8 +44,8 @@ export class CommunitySidebar {
     const nav = document.createElement('div');
     nav.className = 'curia-community-nav';
     
-    // Inject external CSS styles - much cleaner than inline!
-    this.injectExternalCSS();
+    // Inject CSS styles from proper CSS files!
+    injectStyles();
     
     // Create scrollable community list container
     const communityListContainer = document.createElement('div');

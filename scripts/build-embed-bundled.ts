@@ -47,6 +47,9 @@ async function buildEmbedWithEsbuild() {
       platform: 'browser',
       target: 'es2020',
       outfile: join(publicDir, 'embed.js'),
+      loader: {
+        '.css': 'text', // Load CSS files as text strings
+      },
       define: {
         // Inject environment variables at build time
         'CURIA_HOST_URL': JSON.stringify(hostUrl),

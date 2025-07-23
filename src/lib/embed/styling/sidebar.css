@@ -96,11 +96,12 @@
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
   flex-shrink: 0;
   border: 0.125rem solid transparent;
   box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+  z-index: 10;
 }
 
 .community-item.active {

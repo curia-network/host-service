@@ -128,6 +128,11 @@ export class CommunityItem {
 
     console.log(`[MULTI-IFRAME] [OnlineIndicator] Adding online dot for community: ${this.community.name}`);
 
+    // ✅ Ensure parent has proper stacking context
+    item.style.position = 'relative';
+    item.style.zIndex = '10';
+    item.style.overflow = 'visible';
+
     const indicator = document.createElement('div');
     indicator.className = 'online-indicator';
     indicator.style.cssText = `
@@ -140,7 +145,8 @@ export class CommunityItem {
       border: 0.125em solid var(--sidebar-bg-from, #f8fafc);
       border-radius: 50%;
       box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.15);
-      z-index: 10;
+      z-index: 20;
+      overflow: visible;
     `;
     
     item.appendChild(indicator);

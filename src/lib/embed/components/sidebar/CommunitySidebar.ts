@@ -9,7 +9,10 @@
 import { CommunityItem, UserCommunityMembership } from './CommunityItem';
 import { CommunityPreviewManager } from './CommunityPreview';
 import { UserProfileComponent, UserProfile } from '../profile/UserProfile';
+import { MobileBottomNav } from '../mobile/MobileBottomNav';
+import { MobileCommunityPicker } from '../mobile/MobileCommunityPicker';
 import { injectStyles } from '../../styling';
+import { isMobileViewport, addResizeListener } from '../../utils/responsive';
 
 export interface CommunitySidebarOptions {
   communities: UserCommunityMembership[];
@@ -31,6 +34,12 @@ export class CommunitySidebar {
   private communityItems: CommunityItem[] = [];
   private userProfileComponent: UserProfileComponent | null = null;
   private previewManager: CommunityPreviewManager;
+  
+  // Mobile-specific properties
+  private mobileBottomNav: MobileBottomNav | null = null;
+  private mobileCommunityPicker: MobileCommunityPicker | null = null;
+  private isMobile: boolean = false;
+  private resizeCleanup: (() => void) | null = null;
 
   constructor(options: CommunitySidebarOptions) {
     this.communities = options.communities;
@@ -38,14 +47,33 @@ export class CommunitySidebar {
     this.userProfile = options.userProfile;
     this.options = options;
     this.previewManager = CommunityPreviewManager.getInstance();
+    
+    // Initialize mobile state
+    this.isMobile = isMobileViewport();
+    
+    // Set up responsive listener
+    this.resizeCleanup = addResizeListener((isMobile) => {
+      if (this.isMobile !== isMobile) {
+        this.isMobile = isMobile;
+        this.handleViewportChange();
+      }
+    });
   }
 
   render(): HTMLElement {
-    const nav = document.createElement('div');
-    nav.className = 'curia-community-nav';
-    
     // Inject CSS styles from proper CSS files!
     injectStyles();
+    
+    if (this.isMobile) {
+      return this.renderMobile();
+    } else {
+      return this.renderDesktop();
+    }
+  }
+
+  private renderDesktop(): HTMLElement {
+    const nav = document.createElement('div');
+    nav.className = 'curia-community-nav';
     
     // Create scrollable community list container
     const communityListContainer = document.createElement('div');
@@ -64,6 +92,62 @@ export class CommunitySidebar {
     
     this.container = nav;
     return nav;
+  }
+
+  private renderMobile(): HTMLElement {
+    // Create wrapper container for mobile layout
+    const wrapper = document.createElement('div');
+    wrapper.className = 'curia-mobile-wrapper';
+    
+    if (this.userProfile) {
+      // Create mobile community picker modal
+      this.mobileCommunityPicker = new MobileCommunityPicker({
+        communities: this.communities,
+        currentCommunityId: this.currentCommunityId,
+        onCommunitySelect: (community) => {
+          console.log('[CommunitySidebar] Community selected:', community.name);
+          // Hide modal first
+          if (this.mobileCommunityPicker) {
+            this.mobileCommunityPicker.hide();
+          }
+          // Then trigger community selection
+          if (this.options.onCommunitySelect) {
+            this.options.onCommunitySelect(community);
+          }
+        },
+        onClose: () => {
+          console.log('[CommunitySidebar] Mobile community picker closed');
+          if (this.mobileCommunityPicker) {
+            this.mobileCommunityPicker.hide();
+          }
+        }
+      });
+
+      // Create mobile bottom navigation
+      this.mobileBottomNav = new MobileBottomNav({
+        communities: this.communities,
+        currentCommunityId: this.currentCommunityId,
+        userProfile: this.userProfile,
+        onCommunityMenuClick: () => {
+          console.log('[CommunitySidebar] Mobile community menu clicked - showing picker');
+          if (this.mobileCommunityPicker) {
+            this.mobileCommunityPicker.show();
+          }
+        },
+        onProfileMenuClick: () => {
+          console.log('[CommunitySidebar] Mobile profile menu clicked');
+          if (this.options.onMenuAction) {
+            this.options.onMenuAction('profile-menu');
+          }
+        }
+      });
+      
+      const bottomNavElement = this.mobileBottomNav.render();
+      wrapper.appendChild(bottomNavElement);
+    }
+    
+    this.container = wrapper; 
+    return wrapper;
   }
 
   private renderCommunityItems(container: HTMLElement): void {
@@ -165,6 +249,18 @@ export class CommunitySidebar {
   }
 
   /**
+   * Handle viewport changes between mobile and desktop
+   */
+  private handleViewportChange(): void {
+    // Force re-render when viewport changes
+    if (this.container && this.container.parentNode) {
+      const parent = this.container.parentNode;
+      const newElement = this.render();
+      parent.replaceChild(newElement, this.container);
+    }
+  }
+
+  /**
    * Update which community is currently active
    */
   updateActiveCommunity(communityId: string): void {
@@ -172,11 +268,22 @@ export class CommunitySidebar {
 
     this.currentCommunityId = communityId;
 
-    // Update all community items
-    this.communityItems.forEach(item => {
-      const isActive = item['community'].id === communityId; // Access private property
-      item.updateActiveState(isActive);
-    });
+    if (this.isMobile) {
+      // Update mobile bottom nav
+      if (this.mobileBottomNav) {
+        this.mobileBottomNav.updateActiveCommunity(communityId);
+      }
+      // Update mobile community picker
+      if (this.mobileCommunityPicker) {
+        this.mobileCommunityPicker.updateCommunities(this.communities, communityId);
+      }
+    } else {
+      // Update desktop community items
+      this.communityItems.forEach(item => {
+        const isActive = item['community'].id === communityId; // Access private property
+        item.updateActiveState(isActive);
+      });
+    }
   }
 
   /**
@@ -185,12 +292,24 @@ export class CommunitySidebar {
   updateCommunities(communities: UserCommunityMembership[]): void {
     this.communities = communities;
     
-    if (this.container) {
-      const communityListContainer = this.container.querySelector('.community-list-container');
-      if (communityListContainer) {
-        // Clear existing items
-        communityListContainer.innerHTML = '';
-        this.renderCommunityItems(communityListContainer as HTMLElement);
+    if (this.isMobile) {
+      // Update mobile bottom nav
+      if (this.mobileBottomNav) {
+        this.mobileBottomNav.updateCommunities(communities);
+      }
+      // Update mobile community picker
+      if (this.mobileCommunityPicker) {
+        this.mobileCommunityPicker.updateCommunities(communities, this.currentCommunityId);
+      }
+    } else {
+      // Update desktop sidebar
+      if (this.container) {
+        const communityListContainer = this.container.querySelector('.community-list-container');
+        if (communityListContainer) {
+          // Clear existing items
+          communityListContainer.innerHTML = '';
+          this.renderCommunityItems(communityListContainer as HTMLElement);
+        }
       }
     }
   }
@@ -233,7 +352,7 @@ export class CommunitySidebar {
 
 
   /**
-   * Cleanup method for removing event listeners and DOM elements
+   * Cleanup method for removing event listeners and DOM elements  
    */
   destroy(): void {
     // Cleanup community items
@@ -244,6 +363,24 @@ export class CommunitySidebar {
     if (this.userProfileComponent) {
       this.userProfileComponent.destroy();
       this.userProfileComponent = null;
+    }
+
+    // Cleanup mobile bottom nav
+    if (this.mobileBottomNav) {
+      this.mobileBottomNav.destroy();
+      this.mobileBottomNav = null;
+    }
+
+    // Cleanup mobile community picker
+    if (this.mobileCommunityPicker) {
+      this.mobileCommunityPicker.destroy();
+      this.mobileCommunityPicker = null;
+    }
+
+    // Cleanup resize listener
+    if (this.resizeCleanup) {
+      this.resizeCleanup();
+      this.resizeCleanup = null;
     }
 
     // Hide any open preview

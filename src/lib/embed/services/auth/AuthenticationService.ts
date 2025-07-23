@@ -65,10 +65,15 @@ export class AuthenticationService {
   private callbacks: AuthenticationCallbacks;
   private sessionListener?: (event: MessageEvent) => void;
   private crossTabListener?: (event: Event) => void;
+  private sessionManagerSubscription?: () => void;
+  private lastActiveSessionToken: string | null = null;
 
   constructor(hostServiceUrl: string, callbacks: AuthenticationCallbacks = {}) {
     this.hostServiceUrl = hostServiceUrl;
     this.callbacks = callbacks;
+    
+    // Subscribe to SessionManager changes to trigger session switching
+    this.setupSessionManagerSubscription();
   }
 
   /**
@@ -311,6 +316,31 @@ export class AuthenticationService {
   }
 
   /**
+   * Subscribe to SessionManager changes to handle session switching
+   * Only triggers when the ACTIVE SESSION actually changes (not just any session data)
+   */
+  private setupSessionManagerSubscription(): void {
+    this.sessionManagerSubscription = sessionManager.subscribe((sessions, activeToken, activeSession) => {
+      // Only trigger handleSessionSwitch if:
+      // 1. We have an auth context (i.e., we're in an active embed, not just initializing)
+      // 2. The active session token has actually changed (not just session data updates)
+      if (this.authContext && activeToken !== this.lastActiveSessionToken) {
+        console.log('[AuthenticationService] Active session changed from', this.lastActiveSessionToken, 'to', activeToken);
+        console.log('[AuthenticationService] Triggering session switch (full reload)');
+        
+        // Update tracked token BEFORE triggering reload (since reload destroys this instance)
+        this.lastActiveSessionToken = activeToken;
+        
+        this.handleSessionSwitch();
+      } else if (activeToken !== this.lastActiveSessionToken) {
+        // Update tracked token even if we don't have auth context yet (initialization)
+        console.log('[AuthenticationService] Active session token updated (no auth context yet):', activeToken);
+        this.lastActiveSessionToken = activeToken;
+      }
+    });
+  }
+
+  /**
    * Setup cross-tab session synchronization
    */
   setupCrossTabSessionListener(): void {
@@ -381,6 +411,11 @@ export class AuthenticationService {
     if (this.crossTabListener) {
       window.removeEventListener('curia-session-change', this.crossTabListener);
       this.crossTabListener = undefined;
+    }
+    
+    if (this.sessionManagerSubscription) {
+      this.sessionManagerSubscription();
+      this.sessionManagerSubscription = undefined;
     }
     
     this.authContext = null;

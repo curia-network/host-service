@@ -83,6 +83,8 @@ function getIframePermissions(): string {
 export class InternalPluginHost {
   private container: HTMLElement;
   private config: EmbedConfig;
+  private hostServiceUrl: string;
+  private forumUrl: string;
   
   // Service Layer - Injected Dependencies
   private authService: AuthenticationService;
@@ -117,6 +119,8 @@ export class InternalPluginHost {
   constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string) {
     this.container = container;
     this.config = config;
+    this.hostServiceUrl = hostServiceUrl;
+    this.forumUrl = forumUrl;
     
     // Initialize API proxy
     this.apiProxy = new ApiProxyClient({
@@ -212,17 +216,14 @@ export class InternalPluginHost {
 
   /**
    * Handle session switching from auth service
+   * Performs full embed reload to ensure new session context is properly applied
    */
   private async onSessionSwitch(profile: UserProfile): Promise<void> {
-    console.log('[InternalPluginHost] Session switch received from service');
+    console.log('[InternalPluginHost] Session switch detected - performing full embed reload');
+    console.log('[InternalPluginHost] New session profile:', profile);
     
-    // Update community sidebar if it exists
-    if (this.communitySidebar) {
-      this.communitySidebar.updateUserProfile(profile);
-    }
-    
-    // Force iframe reload to prevent crashes from session hot-swap
-    this.iframeManager.reloadCurrentIframe();
+    // Perform full reload to pick up new session context
+    this.reloadForSessionSwitch();
   }
 
   /**
@@ -1106,6 +1107,36 @@ export class InternalPluginHost {
   private addAccount(): void {
     console.log('[InternalPluginHost] Add account - resetting to initial state');
         this.resetToInitialState();
+  }
+
+  /**
+   * Reload embed for session switching - TRUE FULL RELOAD
+   * Destroys current instance and creates brand new one (like page refresh)
+   */
+  private reloadForSessionSwitch(): void {
+    console.log('[InternalPluginHost] Performing TRUE FULL RELOAD for session switch');
+    console.log('[InternalPluginHost] This will destroy current instance and create fresh one');
+    
+    // Store parameters needed for recreation
+    const container = this.container;
+    const config = this.config;
+    const hostServiceUrl = this.hostServiceUrl;
+    const forumUrl = this.forumUrl;
+    
+    // 1. Completely destroy current instance (cleanup all state and services)
+    this.destroy();
+    
+    // 2. Create brand new InternalPluginHost instance (fresh start)
+    console.log('[InternalPluginHost] Creating fresh InternalPluginHost instance');
+    const newInstance = new InternalPluginHost(container, config, hostServiceUrl, forumUrl);
+    
+    // 3. Update global reference if it exists (for window.curiaEmbed.destroy() etc)
+    if (window.curiaEmbed) {
+      console.log('[InternalPluginHost] Updating global curiaEmbed reference');
+      window.curiaEmbed = newInstance;
+    }
+    
+    console.log('[InternalPluginHost] TRUE FULL RELOAD complete - fresh instance will authenticate with new session');
   }
 
   /**

@@ -10,7 +10,6 @@
 .curia-community-nav {
   /* Responsive sidebar dimensions */
   --sidebar-width: 5rem;        /* 80px @ 16px base */
-  --sidebar-height: 37.5rem;    /* 600px @ 16px base */
   --sidebar-padding: 1rem;      /* 16px @ 16px base */
   
   /* Community icon dimensions */
@@ -30,9 +29,8 @@
   
   /* Main sidebar layout */
   width: var(--sidebar-width);
-  height: var(--sidebar-height);
-  min-height: var(--sidebar-height);
-  max-height: var(--sidebar-height);
+  height: 100%;
+  min-height: 100%;
   flex-shrink: 0;
   flex-grow: 0;
   background: linear-gradient(135deg, 
@@ -156,6 +154,9 @@
   flex-shrink: 0;
   height: var(--profile-height);
   min-height: var(--profile-height);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .user-profile-avatar {

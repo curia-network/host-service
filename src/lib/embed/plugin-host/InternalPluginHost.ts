@@ -98,6 +98,10 @@ export class InternalPluginHost {
   private communityIframes: Map<string, HTMLIFrameElement> = new Map();
   private activeCommunityId: string | null = null;
   
+  // Community polling for sidebar refresh (covers both initial load and switchCommunity joins)
+  private communityPollingTimer: NodeJS.Timeout | null = null;
+  private lastKnownCommunities: UserCommunityMembership[] = [];
+  
   // Cross-tab update throttling
   private lastCrossTabReload: number = 0;
   private readonly CROSS_TAB_RELOAD_THROTTLE = 2000; // 2 seconds
@@ -374,6 +378,100 @@ export class InternalPluginHost {
       onMenuAction: (action: string) => this.handleMenuAction(action),
       getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId)
     });
+
+    // Start initial 5-second polling to catch immediate community joins
+    this.startCommunityPolling('initial');
+  }
+
+  /**
+   * Start 5-second community polling (DRY implementation)
+   * Used for both initial load and switchCommunity scenarios
+   */
+  private startCommunityPolling(reason: 'initial' | 'community-switch'): void {
+    console.log(`[InternalPluginHost] Starting 5-second community polling (${reason})`);
+    
+    // Stop any existing polling first
+    this.stopCommunityPolling();
+    
+    let pollCount = 0;
+    const maxPolls = 5;
+    
+    this.communityPollingTimer = setInterval(async () => {
+      pollCount++;
+      console.log(`[InternalPluginHost] Community refresh poll ${pollCount}/${maxPolls} (${reason})`);
+      
+      try {
+        await this.refreshCommunitySidebar();
+      } catch (error) {
+        console.error('[InternalPluginHost] Failed to refresh communities during polling:', error);
+      }
+      
+      // Stop polling after 5 iterations
+      if (pollCount >= maxPolls) {
+        console.log(`[InternalPluginHost] Polling completed (${reason}), switching to event-driven updates`);
+        this.stopCommunityPolling();
+      }
+    }, 1000); // Poll every second for 5 seconds
+  }
+
+  /**
+   * Stop the community polling timer
+   */
+  private stopCommunityPolling(): void {
+    if (this.communityPollingTimer) {
+      clearInterval(this.communityPollingTimer);
+      this.communityPollingTimer = null;
+    }
+  }
+
+  /**
+   * Refresh the community sidebar with fresh data (with flickering prevention)
+   * Used by both initial polling and switchCommunity events
+   */
+  private async refreshCommunitySidebar(): Promise<void> {
+    if (!this.communitySidebar) return;
+    
+    try {
+      const freshCommunities = await this.authService.fetchUserCommunities();
+      
+      // 🎯 FLICKERING FIX: Only update UI if communities actually changed
+      if (this.hasCommunitiesChanged(freshCommunities, this.lastKnownCommunities)) {
+        this.communitySidebar.updateCommunities(freshCommunities);
+        this.lastKnownCommunities = freshCommunities;
+        console.log(`[InternalPluginHost] Sidebar updated with ${freshCommunities.length} communities (changes detected)`);
+      } else {
+        console.log(`[InternalPluginHost] No community changes detected, skipping UI update`);
+      }
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to refresh community sidebar:', error);
+    }
+  }
+
+  /**
+   * Compare two community arrays to detect actual changes
+   * Prevents unnecessary UI flickering during polling
+   */
+  private hasCommunitiesChanged(
+    newCommunities: UserCommunityMembership[], 
+    oldCommunities: UserCommunityMembership[]
+  ): boolean {
+    // Different lengths = definitely changed
+    if (newCommunities.length !== oldCommunities.length) {
+      return true;
+    }
+    
+    // Check if any community IDs are different
+    const newIds = new Set(newCommunities.map(c => c.id));
+    const oldIds = new Set(oldCommunities.map(c => c.id));
+    
+    // Compare sets
+    if (newIds.size !== oldIds.size) return true;
+    
+    for (const id of newIds) {
+      if (!oldIds.has(id)) return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -679,22 +777,12 @@ export class InternalPluginHost {
       // Use existing switchToCommunity logic!
       await this.switchToCommunity(communityId);
 
-      // Get community info for response
-      const communities = await this.authService.fetchUserCommunities();
-      const targetCommunity = communities.find(c => c.id === communityId);
-
-      if (!targetCommunity) {
-        throw new Error(`Community ${communityId} not found or not accessible`);
-      }
+      // 🔄 START POLLING: User will join community during iframe load, so start polling to detect it
+      this.startCommunityPolling('community-switch');
 
       const result = {
-        communityInfo: {
-          id: targetCommunity.id,
-          name: targetCommunity.name,
-          logoUrl: targetCommunity.logoUrl
-        },
-        hasAccess: true,
-        switched: true
+        switched: true,
+        communityId: communityId
       };
 
       console.log(`[InternalPluginHost] Community switch completed successfully:`, result);

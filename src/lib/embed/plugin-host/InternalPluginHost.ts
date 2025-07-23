@@ -928,6 +928,9 @@ export class InternalPluginHost {
       // 2. Switch to selected community using existing infrastructure
       await this.switchToCommunity(communityId);
       
+      // 3. 🔄 START POLLING: User will join community during iframe load, so start polling to detect it
+      this.startCommunityPolling('community-switch');
+      
       console.log('[InternalPluginHost] Discovery-to-community switch completed');
     } catch (error) {
       console.error('[InternalPluginHost] Discovery community switch failed:', error);

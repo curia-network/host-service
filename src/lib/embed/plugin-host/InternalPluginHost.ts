@@ -1119,9 +1119,15 @@ export class InternalPluginHost {
     
     // Store parameters needed for recreation
     const container = this.container;
-    const config = this.config;
+    const config = { ...this.config }; // ✅ Create copy to avoid mutation
     const hostServiceUrl = this.hostServiceUrl;
     const forumUrl = this.forumUrl;
+    
+    // 🎯 PRESERVE COMMUNITY CONTEXT!
+    if (this.activeCommunityId) {
+      console.log('[InternalPluginHost] Preserving community context:', this.activeCommunityId);
+      config.community = this.activeCommunityId; // ✅ Override with current community
+    }
     
     // 1. Completely destroy current instance (cleanup all state and services)
     this.destroy();

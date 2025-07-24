@@ -10,7 +10,7 @@
  */
 
 import { UserProfile } from '../profile/UserProfile';
-import { getGradientStyle, getGradientClass } from '../../styling';
+import { getGradientStyle, getGradientClass, getIconHTML } from '../../styling';
 import { sessionManager, SessionData } from '../../../SessionManager';
 
 export interface MobileProfileDrawerOptions {
@@ -142,7 +142,7 @@ export class MobileProfileDrawer {
     
     const closeButton = document.createElement('button');
     closeButton.className = 'mobile-profile-drawer-close';
-    closeButton.innerHTML = '⌄'; // Down chevron - suggests collapse
+    closeButton.innerHTML = getIconHTML('chevronDown', { size: 24 }); // Beautiful Lucide chevron down
     closeButton.addEventListener('click', () => {
       this.options.onClose();
     });

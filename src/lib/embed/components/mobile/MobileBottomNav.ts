@@ -7,7 +7,7 @@
 
 import { UserCommunityMembership } from '../sidebar/CommunityItem';
 import { UserProfile } from '../profile/UserProfile';
-import { getGradientStyle, getGradientClass, getIconForCommunity } from '../../styling';
+import { getGradientStyle, getGradientClass, getIconForCommunity, getIconHTML } from '../../styling';
 
 export interface MobileBottomNavOptions {
   communities: UserCommunityMembership[];
@@ -39,7 +39,19 @@ export class MobileBottomNav {
     const communitySection = this.renderCommunityBurger();
     bottomNav.appendChild(communitySection);
 
-    // 2. Profile menu (right)
+    // 2. Search stub (center-left)
+    const searchSection = this.renderSearchStub();
+    bottomNav.appendChild(searchSection);
+
+    // 3. Messages stub (center)
+    const messagesSection = this.renderMessagesStub();
+    bottomNav.appendChild(messagesSection);
+
+    // 4. Notifications stub (center-right)
+    const notificationsSection = this.renderNotificationsStub();
+    bottomNav.appendChild(notificationsSection);
+
+    // 5. Profile menu (right)
     const profileSection = this.renderProfileMenu();
     bottomNav.appendChild(profileSection);
 
@@ -98,7 +110,41 @@ export class MobileBottomNav {
     return section;
   }
 
+  private renderSearchStub(): HTMLElement {
+    const section = document.createElement('div');
+    section.className = 'mobile-nav-section inactive';
+    
+    const icon = document.createElement('div');
+    icon.className = 'mobile-stub-icon';
+    icon.innerHTML = getIconHTML('search', { size: 20 }); // Beautiful Lucide search icon
+    
+    section.appendChild(icon);
+    return section;
+  }
 
+  private renderMessagesStub(): HTMLElement {
+    const section = document.createElement('div');
+    section.className = 'mobile-nav-section inactive';
+    
+    const icon = document.createElement('div');
+    icon.className = 'mobile-stub-icon';
+    icon.innerHTML = getIconHTML('messages', { size: 20 }); // Beautiful Lucide message square icon
+    
+    section.appendChild(icon);
+    return section;
+  }
+
+  private renderNotificationsStub(): HTMLElement {
+    const section = document.createElement('div');
+    section.className = 'mobile-nav-section inactive';
+    
+    const icon = document.createElement('div');
+    icon.className = 'mobile-stub-icon';
+    icon.innerHTML = getIconHTML('notifications', { size: 20 }); // Beautiful Lucide bell icon
+    
+    section.appendChild(icon);
+    return section;  
+  }
 
   private renderProfileMenu(): HTMLElement {
     const section = document.createElement('div');

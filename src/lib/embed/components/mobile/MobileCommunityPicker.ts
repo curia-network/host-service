@@ -10,7 +10,7 @@
  */
 
 import { UserCommunityMembership } from '../sidebar/CommunityItem';
-import { getGradientStyle, getGradientClass, getIconForCommunity } from '../../styling';
+import { getGradientStyle, getGradientClass, getIconForCommunity, getIconHTML } from '../../styling';
 
 export interface MobileCommunityPickerOptions {
   communities: UserCommunityMembership[];
@@ -110,7 +110,7 @@ export class MobileCommunityPicker {
     
     const closeButton = document.createElement('button');
     closeButton.className = 'mobile-community-picker-close';
-    closeButton.innerHTML = '⌄'; // Down chevron - suggests collapse
+    closeButton.innerHTML = getIconHTML('chevronDown', { size: 24 }); // Beautiful Lucide chevron down
     closeButton.addEventListener('click', () => {
       this.options.onClose();
     });

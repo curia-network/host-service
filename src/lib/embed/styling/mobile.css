@@ -59,6 +59,12 @@
   width: auto;
 }
 
+/* Middle sections (stubs) - evenly distribute */
+.mobile-nav-section:not(:first-child):not(:last-child) {
+  flex: 1;
+  justify-content: center;
+}
+
 .mobile-nav-section:hover:not(.inactive):not(:first-child) {
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.02);
@@ -117,7 +123,26 @@
   flex-shrink: 0;
 }
 
+/* Inactive stub sections (search, messages, notifications) */
+.mobile-nav-section.inactive {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
+.mobile-stub-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--preview-text-muted);
+}
+
+/* Lucide icon styling within stub icons */
+.mobile-stub-icon .lucide-icon {
+  stroke: var(--preview-text-muted);
+  opacity: 0.7; /* Subtle appearance for inactive stubs */
+}
 
 /* Profile section (right) */
 .mobile-profile-section {
@@ -219,20 +244,31 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--item-bg);
-  border-radius: 8px;
+  background: transparent; /* Free floating, no background */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px; /* Better size alignment with title (20px) */
+  font-weight: 500; /* Slightly less bold for better harmony */
   color: var(--preview-text-muted);
   transition: all 0.2s ease;
+  margin-top: -1px; /* Subtle vertical adjustment for better alignment */
 }
 
 .mobile-community-picker-close:hover {
-  background: var(--item-hover-bg);
   color: var(--preview-text);
+  transform: scale(1.1); /* Subtle scale instead of background change */
+}
+
+/* Lucide chevron icon styling in close button */
+.mobile-community-picker-close .lucide-icon {
+  stroke: var(--preview-text-muted);
+  transition: all 0.2s ease;
+}
+
+.mobile-community-picker-close:hover .lucide-icon {
+  stroke: var(--preview-text);
 }
 
 /* Grid container with scroll */
@@ -426,20 +462,31 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--item-bg);
-  border-radius: 8px;
+  background: transparent; /* Free floating, no background */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px; /* Better size alignment with title (20px) */
+  font-weight: 500; /* Slightly less bold for better harmony */
   color: var(--preview-text-muted);
   transition: all 0.2s ease;
+  margin-top: -1px; /* Subtle vertical adjustment for better alignment */
 }
 
 .mobile-profile-drawer-close:hover {
-  background: var(--item-hover-bg);
   color: var(--preview-text);
+  transform: scale(1.1); /* Subtle scale instead of background change */
+}
+
+/* Lucide chevron icon styling in close button */
+.mobile-profile-drawer-close .lucide-icon {
+  stroke: var(--preview-text-muted);
+  transition: all 0.2s ease;
+}
+
+.mobile-profile-drawer-close:hover .lucide-icon {
+  stroke: var(--preview-text);
 }
 
 /* Profile section */

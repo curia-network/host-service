@@ -1,7 +1,81 @@
 /**
- * Icon utilities for community representations
- * Extracted from InternalPluginHost.ts for better maintainability
+ * Lucide Icons Utility
+ * Beautiful, consistent SVG icons for the mobile navigation
+ * All icons are 24x24 and support CSS theming via currentColor
  */
+
+export interface IconOptions {
+  size?: number;
+  className?: string;
+  color?: string;
+}
+
+/**
+ * Render an SVG icon with consistent styling
+ */
+function renderIcon(svgContent: string, options: IconOptions = {}): string {
+  const { size = 20, className = '', color = 'currentColor' } = options;
+  
+  return `<svg 
+    width="${size}" 
+    height="${size}" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="${color}" 
+    stroke-width="2" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"
+    class="lucide-icon ${className}"
+    style="display: inline-block; vertical-align: middle;"
+  >${svgContent}</svg>`;
+}
+
+/**
+ * Mobile Navigation Icons
+ */
+export const MobileIcons = {
+  // Search - magnifying glass
+  search: (options?: IconOptions) => renderIcon(
+    '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>',
+    options
+  ),
+
+  // Messages - message square  
+  messages: (options?: IconOptions) => renderIcon(
+    '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    options
+  ),
+
+  // Notifications - bell
+  notifications: (options?: IconOptions) => renderIcon(
+    '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    options
+  ),
+
+  // Chevron Down - for collapse
+  chevronDown: (options?: IconOptions) => renderIcon(
+    '<path d="m6 9 6 6 6-6"/>',
+    options
+  ),
+
+  // Chevron Up - for expand  
+  chevronUp: (options?: IconOptions) => renderIcon(
+    '<path d="m18 15-6-6-6 6"/>',
+    options
+  )
+};
+
+/**
+ * Get icon HTML string for direct innerHTML usage
+ */
+export function getIconHTML(iconName: keyof typeof MobileIcons, options?: IconOptions): string {
+  return MobileIcons[iconName](options);
+}
+
+// ==========================================
+// EXISTING COMMUNITY ICON FUNCTIONS
+// (Preserving original functionality)
+// ==========================================
 
 /**
  * Get emoji icon for community based on name

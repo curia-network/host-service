@@ -389,7 +389,7 @@ export class InternalPluginHost {
       onMenuAction: (action: string) => this.handleMenuAction(action),
       getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId),
       onPlusButtonClick: () => this.openDiscoveryModal(),
-      embedContainer: this.embedContainer // 🎯 Pass embed container for mobile boundary respect
+      embedContainer: this.embedContainer || undefined // 🎯 Pass embed container for mobile boundary respect (null → undefined)
     });
 
     // Start initial 5-second polling to catch immediate community joins

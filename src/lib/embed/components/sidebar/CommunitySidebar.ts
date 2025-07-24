@@ -133,7 +133,7 @@ export class CommunitySidebar {
             this.options.onPlusButtonClick();
           }
         },
-        embedContainer: this.embedContainer // 🎯 Pass embed container for boundary respect
+        embedContainer: this.embedContainer || undefined // 🎯 Pass embed container for boundary respect (null → undefined)
       });
 
       // Create mobile profile drawer
@@ -156,7 +156,7 @@ export class CommunitySidebar {
             this.mobileProfileDrawer.hide();
           }
         },
-        embedContainer: this.embedContainer // 🎯 Pass embed container for boundary respect
+        embedContainer: this.embedContainer || undefined // 🎯 Pass embed container for boundary respect (null → undefined)
       });
 
       // Create mobile bottom navigation

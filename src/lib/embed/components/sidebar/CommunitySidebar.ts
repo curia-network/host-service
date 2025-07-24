@@ -20,6 +20,7 @@ export interface CommunitySidebarOptions {
   communities: UserCommunityMembership[];
   currentCommunityId: string;
   userProfile: UserProfile | null;
+  hostServiceUrl: string; // 🎯 Host service URL for absolute asset paths
   onCommunitySelect?: (community: UserCommunityMembership) => void;
   onMenuAction?: (action: string) => void;
   getIframeStatus?: (communityId: string) => boolean; // Simple function to check if iframe is loaded
@@ -31,6 +32,7 @@ export class CommunitySidebar {
   private communities: UserCommunityMembership[];
   private currentCommunityId: string;
   private userProfile: UserProfile | null;
+  private hostServiceUrl: string; // 🎯 Host service URL for absolute asset paths
   private options: CommunitySidebarOptions;
   private embedContainer: HTMLElement | null = null; // 🎯 Reference to embed container for boundary respect
   
@@ -50,6 +52,7 @@ export class CommunitySidebar {
     this.communities = options.communities;
     this.currentCommunityId = options.currentCommunityId;
     this.userProfile = options.userProfile;
+    this.hostServiceUrl = options.hostServiceUrl; // 🎯 Store host service URL
     this.options = options;
     this.embedContainer = options.embedContainer || null; // 🎯 Store embed container reference
     this.previewManager = CommunityPreviewManager.getInstance();
@@ -478,7 +481,7 @@ export class CommunitySidebar {
     logoSection.className = 'sidebar-logo-section';
     
     const logoImg = document.createElement('img');
-    logoImg.src = '/curia.webp'; // 🎨 Using public/curia.webp
+    logoImg.src = `${this.hostServiceUrl}/curia.webp`; // 🎨 Using absolute URL to host service
     logoImg.alt = 'Curia';
     logoImg.className = 'sidebar-logo-img';
     

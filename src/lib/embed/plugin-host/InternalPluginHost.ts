@@ -417,6 +417,7 @@ export class InternalPluginHost {
       communities,
       currentCommunityId: this.authService.getAuthContext()?.communityId || '',
       userProfile: profile,
+      hostServiceUrl: this.hostServiceUrl, // 🎯 Pass host service URL for absolute asset paths
       onCommunitySelect: (community) => {
         console.log('[InternalPluginHost] Community selected:', community.name);
         console.log(`[MULTI-IFRAME] Community selection triggered for: ${community.id} (${community.name})`);
@@ -902,7 +903,7 @@ export class InternalPluginHost {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10000;
+      z-index: 1000000;
       backdrop-filter: blur(4px);
     `;
     
@@ -1081,7 +1082,7 @@ export class InternalPluginHost {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10000;
+      z-index: 1000000;
       backdrop-filter: blur(4px);
     `;
     

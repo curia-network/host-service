@@ -110,6 +110,13 @@ export class IframeManager {
     
     this.currentIframe = iframe;
     
+    // 🎯 CRITICAL FIX: Set auth iframe as active iframe for API proxy during auth phase
+    this.apiProxy.setActiveIframe(iframe);
+    console.log('[IframeManager] API proxy client configured for auth iframe:', {
+      iframeSrc: iframe.src,
+      hasContentWindow: !!iframe.contentWindow
+    });
+    
     // Notify callback
     if (this.callbacks.onIframeSwitch) {
       this.callbacks.onIframeSwitch(iframe, 'auth');

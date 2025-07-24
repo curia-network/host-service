@@ -145,7 +145,7 @@ export class InternalPluginHost {
       onSessionSwitch: this.onSessionSwitch.bind(this),
       onSignOut: this.onSignOut.bind(this),
       onCrossTabSessionUpdate: this.onCrossTabUpdate.bind(this)
-    }, this.apiProxy); // 🎯 Pass the working API proxy instance
+    });
     
     this.messageRouter = new MessageRouter(
       this.iframeManager.getUid(),
@@ -196,7 +196,7 @@ export class InternalPluginHost {
       return;
     }
     
-    // Initialize community navigation
+    // Initialize community navigation (sidebar must exist before layout)
     await this.initializeCommunityNavigation();
     
     // Switch to forum phase

@@ -1,15 +1,8 @@
 /*
  * Main CSS Entry Point for Curia Embed Styling
- * Imports all component stylesheets in the correct order
+ * 
+ * NOTE: Individual CSS files are bundled via esbuild in index.ts
+ * @import statements here would execute in browser and try to load from customer domain
  */
 
-/* Base sidebar component styles */
-@import './sidebar.css';
-
-/* Component-specific styles */
-@import './preview.css';
-@import './profile-menu.css';
-
-/* Theme imports - light is default, dark overrides */
-@import './themes/light.css';
-@import './themes/dark.css'; 
+/* All CSS is bundled in styling/index.ts - no @import needed */ 

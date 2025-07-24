@@ -509,14 +509,19 @@ const EmbedContent: React.FC = () => {
     }
   };
 
+  // Check if we're in a modal mode that should hide the top bar
+  const isModalMode = config.mode === 'community-discovery' || config.mode === 'add-session';
+
   return (
     <div className="embed-container">
-      {/* Top Bar with Progress and User Info */}
-      <EmbedTopBar 
-        currentStep={currentStep}
-        profileData={profileData}
-        onDisconnect={handleDisconnect}
-      />
+      {/* Only show top bar in non-modal modes - modals need clean interface */}
+      {!isModalMode && (
+        <EmbedTopBar 
+          currentStep={currentStep}
+          profileData={profileData}
+          onDisconnect={handleDisconnect}
+        />
+      )}
       
       <div className="embed-content">
         {renderStep()}

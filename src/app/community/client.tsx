@@ -21,7 +21,7 @@ export function CommunityPageClient() {
     script.src = '/embed.js';
     script.async = true;
     script.setAttribute('data-container', 'curia-community-forum');
-    script.setAttribute('data-theme', resolvedTheme); // Use current theme
+    script.setAttribute('data-theme', resolvedTheme); // Match top bar theme exactly
     script.setAttribute('data-width', '100%');
     script.setAttribute('data-height', '100%');
     script.setAttribute('data-background-color', resolvedTheme === 'dark' ? '#0F172A' : '#FFFFFF');
@@ -47,7 +47,7 @@ export function CommunityPageClient() {
         delete window.curiaEmbed;
       }
     };
-  }, [communityId, resolvedTheme]);
+  }, [communityId, resolvedTheme]); // 🎯 Include resolvedTheme to keep top bar and embed in sync!
 
   const handleBack = () => {
     window.location.href = '/';

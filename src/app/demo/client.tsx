@@ -19,7 +19,7 @@ export function DemoPageClient() {
     script.src = '/embed.js';
     script.async = true;
     script.setAttribute('data-container', 'curia-forum');
-    script.setAttribute('data-theme', resolvedTheme); // Use current theme
+    script.setAttribute('data-theme', resolvedTheme); // Match any future top bar theme
     script.setAttribute('data-width', '100%');
     script.setAttribute('data-height', '100%');
     script.setAttribute('data-background-color', resolvedTheme === 'dark' ? '#0F172A' : '#FFFFFF');
@@ -40,7 +40,7 @@ export function DemoPageClient() {
         delete window.curiaEmbed;
       }
     };
-  }, [resolvedTheme]);
+  }, [resolvedTheme]); // 🎯 Include resolvedTheme to ensure consistent theming!
 
   const handleBack = () => {
     window.location.href = '/';

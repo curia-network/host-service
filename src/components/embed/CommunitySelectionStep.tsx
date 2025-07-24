@@ -230,10 +230,13 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
             </div>
           </div>
           <CardTitle className="text-2xl embed-gradient-text">
-            Choose Your Community
+            {config.mode === 'community-discovery' ? 'Find New Communities' : 'Choose Your Community'}
           </CardTitle>
           <CardDescription className="text-base">
-            Select a community to join the conversation
+            {config.mode === 'community-discovery' 
+              ? 'Discover and join communities that match your interests'
+              : 'Select a community to join the conversation'
+            }
           </CardDescription>
         </CardHeader>
 
@@ -281,8 +284,8 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
                 </div>
               )}
 
-              {/* User's Communities Section */}
-              {userCommunities.length > 0 && (
+              {/* User's Communities Section - Hidden in discovery mode */}
+              {userCommunities.length > 0 && config.mode !== 'community-discovery' && (
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-4">
                     <Crown className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -357,10 +360,13 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
               {/* Available Communities Section */}
               {availableCommunities.length > 0 && (
                 <div className="mb-6">
-                  {userCommunities.length > 0 && (
+                  {/* Show header in discovery mode OR when user has communities */}
+                  {(config.mode === 'community-discovery' || userCommunities.length > 0) && (
                     <div className="flex items-center gap-2 mb-4">
                       <Globe className="w-5 h-5 text-muted-foreground" />
-                      <h3 className="font-semibold text-lg">Explore Communities</h3>
+                      <h3 className="font-semibold text-lg">
+                        {config.mode === 'community-discovery' ? 'Discover Communities' : 'Explore Communities'}
+                      </h3>
                       <Badge variant="outline" className="text-xs">
                         {filteredAndSortedCommunities.length}
                       </Badge>

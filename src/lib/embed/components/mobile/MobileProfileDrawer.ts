@@ -142,7 +142,7 @@ export class MobileProfileDrawer {
     
     const closeButton = document.createElement('button');
     closeButton.className = 'mobile-profile-drawer-close';
-    closeButton.innerHTML = '×';
+    closeButton.innerHTML = '⌄'; // Down chevron - suggests collapse
     closeButton.addEventListener('click', () => {
       this.options.onClose();
     });

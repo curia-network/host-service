@@ -110,7 +110,7 @@ export class MobileCommunityPicker {
     
     const closeButton = document.createElement('button');
     closeButton.className = 'mobile-community-picker-close';
-    closeButton.innerHTML = '×';
+    closeButton.innerHTML = '⌄'; // Down chevron - suggests collapse
     closeButton.addEventListener('click', () => {
       this.options.onClose();
     });

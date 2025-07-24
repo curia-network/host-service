@@ -39,15 +39,7 @@ export class MobileBottomNav {
     const communitySection = this.renderCommunityBurger();
     bottomNav.appendChild(communitySection);
 
-    // 2. Messages stub (center-left)
-    const messagesSection = this.renderMessagesStub();
-    bottomNav.appendChild(messagesSection);
-
-    // 3. Notifications stub (center-right)  
-    const notificationsSection = this.renderNotificationsStub();
-    bottomNav.appendChild(notificationsSection);
-
-    // 4. Profile menu (right)
+    // 2. Profile menu (right)
     const profileSection = this.renderProfileMenu();
     bottomNav.appendChild(profileSection);
 
@@ -106,29 +98,7 @@ export class MobileBottomNav {
     return section;
   }
 
-  private renderMessagesStub(): HTMLElement {
-    const section = document.createElement('div');
-    section.className = 'mobile-nav-section inactive';
-    
-    const icon = document.createElement('div');
-    icon.className = 'mobile-stub-icon';
-    icon.innerHTML = '💬'; // Messages icon
-    
-    section.appendChild(icon);
-    return section;
-  }
 
-  private renderNotificationsStub(): HTMLElement {
-    const section = document.createElement('div');
-    section.className = 'mobile-nav-section inactive';
-    
-    const icon = document.createElement('div');
-    icon.className = 'mobile-stub-icon';
-    icon.innerHTML = '🔔'; // Notification bell
-    
-    section.appendChild(icon);
-    return section;
-  }
 
   private renderProfileMenu(): HTMLElement {
     const section = document.createElement('div');

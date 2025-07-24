@@ -117,21 +117,7 @@
   flex-shrink: 0;
 }
 
-/* Inactive stub sections (messages & notifications) */
-.mobile-nav-section.inactive {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
-.mobile-stub-icon {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--preview-text-muted, #6b7280);
-  font-size: 20px;
-}
 
 /* Profile section (right) */
 .mobile-profile-section {

@@ -285,15 +285,20 @@ export class UserProfileComponent {
    */
   private createAvailableSessions(): string {
     const activeToken = this.sessionManager.getActiveToken();
+    
+    // 1. Filter out active session (it's shown in header)
     const inactiveSessions = this.allSessions.filter(session => 
       session.sessionToken !== activeToken
     );
     
-    if (inactiveSessions.length === 0) {
+    // 2. 🎯 Deduplicate by actual identity (display-only filtering)
+    const uniqueSessions = this.deduplicateSessionsByIdentity(inactiveSessions);
+    
+    if (uniqueSessions.length === 0) {
       return ''; // No available sessions section
     }
     
-    const sessionsHtml = inactiveSessions.map(session => {
+    const sessionsHtml = uniqueSessions.map(session => {
       const sessionName = session.name || 'Unknown User';
       const hasImage = !!session.profileImageUrl;
       const gradientClass = this.getGradientClass(sessionName);
@@ -321,6 +326,42 @@ export class UserProfileComponent {
         ${sessionsHtml}
       </div>
     `;
+  }
+
+  /**
+   * Get unique identity key for session deduplication
+   */
+  private getIdentityKey(session: SessionData): string {
+    switch (session.identityType) {
+      case 'ens':
+        return `ens:${session.ensName}`;           // e.g., "ens:vitalik.eth"
+      case 'universal_profile':
+        return `up:${session.upAddress}`;          // e.g., "up:0x123..."
+      case 'anonymous':
+        return `wallet:${session.walletAddress}`;  // e.g., "wallet:0x456..." (only one anon per wallet)
+      default:
+        return `user:${session.userId}`;           // Fallback to userId
+    }
+  }
+
+  /**
+   * Deduplicate sessions by actual identity, keeping most recent for each unique identity
+   * This is display-only filtering - all sessions remain in storage
+   */
+  private deduplicateSessionsByIdentity(sessions: SessionData[]): SessionData[] {
+    const identityMap = new Map<string, SessionData>();
+    
+    for (const session of sessions) {
+      const identityKey = this.getIdentityKey(session);
+      
+      // Keep the most recent session for each unique identity
+      const existing = identityMap.get(identityKey);
+      if (!existing || session.lastAccessedAt > existing.lastAccessedAt) {
+        identityMap.set(identityKey, session);
+      }
+    }
+    
+    return Array.from(identityMap.values());
   }
 
   /**

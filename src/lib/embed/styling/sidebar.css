@@ -50,15 +50,15 @@
   display: none; 
 }
 
-/* Community list container - scrollable */
+/* Community list container - scrollable with badge space */
 .community-list-container {
   flex: 1;
   height: 0; /* Force flex to work properly */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--sidebar-border) transparent;
-  padding: 0 4px;
-  margin: 0 -4px;
+  padding: 8px 8px 0px 4px; /* Space for online badges (top/right) */
+  margin: -8px -8px 0px -4px; /* Offset padding to maintain container size */
   display: flex;
   flex-direction: column;
   gap: 14px;

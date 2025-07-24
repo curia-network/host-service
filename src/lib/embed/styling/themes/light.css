@@ -1,9 +1,13 @@
 /*
  * Light Theme for Curia Community Navigation
  * Default theme with clean, bright appearance
+ * Extended scope to include mobile components
  */
 
-.curia-community-nav {
+.curia-community-nav,
+.curia-mobile-bottom-nav,
+.mobile-community-picker-overlay,
+.mobile-profile-drawer-overlay {
   --sidebar-bg-from: #f8fafc;
   --sidebar-bg-to: #f1f5f9;
   --sidebar-border: rgba(148, 163, 184, 0.2);

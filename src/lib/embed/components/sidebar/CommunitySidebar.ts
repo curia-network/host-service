@@ -122,6 +122,13 @@ export class CommunitySidebar {
           if (this.mobileCommunityPicker) {
             this.mobileCommunityPicker.hide();
           }
+        },
+        onPlusButtonClick: () => {
+          console.log('[CommunitySidebar] Mobile plus button clicked - same as desktop');
+          // Same callback as desktop
+          if (this.options.onPlusButtonClick) {
+            this.options.onPlusButtonClick();
+          }
         }
       });
 

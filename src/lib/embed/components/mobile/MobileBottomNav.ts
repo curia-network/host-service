@@ -64,10 +64,10 @@ export class MobileBottomNav {
     const burger = document.createElement('div');
     burger.className = 'mobile-community-burger';
     
-    // Burger/menu icon
+    // Expand/collapse icon (more cohesive than hamburger)
     const burgerIcon = document.createElement('div');
     burgerIcon.className = 'mobile-burger-icon';
-    burgerIcon.innerHTML = '☰'; // Hamburger icon
+    burgerIcon.innerHTML = '⌃'; // Up chevron - suggests expandable menu
     
     // Community indicator (small version of current community)
     const indicator = document.createElement('div');
@@ -169,13 +169,7 @@ export class MobileBottomNav {
       avatar.appendChild(initials);
     }
     
-    // Dropdown indicator
-    const dropdown = document.createElement('div');
-    dropdown.className = 'mobile-profile-dropdown';
-    dropdown.innerHTML = '▾';
-    
     profileSection.appendChild(avatar);
-    profileSection.appendChild(dropdown);
     section.appendChild(profileSection);
     
     // Click handler for profile menu

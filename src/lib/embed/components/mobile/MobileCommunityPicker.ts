@@ -17,6 +17,7 @@ export interface MobileCommunityPickerOptions {
   currentCommunityId: string;
   onCommunitySelect: (community: UserCommunityMembership) => void;
   onClose: () => void;
+  onPlusButtonClick?: () => void; // Same callback as desktop
 }
 
 export class MobileCommunityPicker {
@@ -208,10 +209,12 @@ export class MobileCommunityPicker {
     plusButton.appendChild(plusIcon);
     plusButton.appendChild(plusText);
     
-    // Click handler (placeholder for future feature)
+    // Click handler (same as desktop)
     plusButton.addEventListener('click', () => {
       console.log('[MobileCommunityPicker] Plus button clicked - community discovery');
-      // TODO: Implement community discovery
+      if (this.options.onPlusButtonClick) {
+        this.options.onPlusButtonClick();
+      }
     });
     
     section.appendChild(plusButton);

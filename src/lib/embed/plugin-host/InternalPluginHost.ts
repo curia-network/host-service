@@ -954,7 +954,7 @@ export class InternalPluginHost {
     
     // Create discovery iframe
     this.discoveryIframe = document.createElement('iframe');
-    this.discoveryIframe.src = `${window.location.origin}/embed?mode=community-discovery`;
+    this.discoveryIframe.src = `${this.hostServiceUrl}/embed?mode=community-discovery`;
     this.discoveryIframe.style.cssText = `
       width: 100%;
       height: 100%;
@@ -1133,7 +1133,7 @@ export class InternalPluginHost {
     
     // Create add session iframe
     this.addSessionIframe = document.createElement('iframe');
-    this.addSessionIframe.src = `${window.location.origin}/embed?mode=add-session`;
+    this.addSessionIframe.src = `${this.hostServiceUrl}/embed?mode=add-session`;
     this.addSessionIframe.style.cssText = `
       width: 100%;
       height: 100%;

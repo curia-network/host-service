@@ -93,6 +93,58 @@ export class AuthenticationService {
   }
 
   /**
+   * Make API call with retry logic and exponential backoff
+   * Handles the race condition where forum iframe is created but ApiProxyServer isn't ready yet
+   */
+  private async makeApiCallWithRetry(
+    method: 'getUserCommunities' | 'getUserProfile', 
+    params: any, 
+    maxRetries: number = 3
+  ): Promise<any> {
+    if (!this.apiProxy || !this.authContext) {
+      throw new Error('API proxy or auth context not available');
+    }
+
+    console.log(`[AuthenticationService] 🔄 Starting API proxy calls for ${method} (max ${maxRetries} attempts)`);
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[AuthenticationService] 🎯 API proxy attempt ${attempt}/${maxRetries} for ${method}`);
+        
+        const response = await this.apiProxy.makeApiRequest({
+          method,
+          userId: this.authContext.userId,
+          communityId: this.authContext.communityId,
+          params
+        });
+
+        if (response.success) {
+          console.log(`[AuthenticationService] ✅ API proxy SUCCESS for ${method} on attempt ${attempt}/${maxRetries}`);
+          return response;
+        } else {
+          throw new Error(response.error || `API request failed for ${method}`);
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        if (attempt === maxRetries) {
+          console.log(`[AuthenticationService] ❌ API proxy FINAL FAILURE for ${method} after ${maxRetries} attempts:`, lastError.message);
+          break;
+        }
+
+        // Exponential backoff: 250ms, 500ms, 1000ms (max 1s to keep UI responsive)
+        const delay = Math.min(250 * Math.pow(2, attempt - 1), 1000);
+        console.log(`[AuthenticationService] ⏳ API proxy attempt ${attempt} failed for ${method}, retrying in ${delay}ms:`, lastError.message);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError || new Error(`API proxy failed after ${maxRetries} attempts for ${method}`);
+  }
+
+  /**
    * Create and configure auth iframe
    */
   createAuthIframe(config: AuthConfig, container: HTMLElement): HTMLIFrameElement {
@@ -179,20 +231,15 @@ export class AuthenticationService {
         return [];
       }
 
-      // 🎯 NEW: Try API proxy first (CSP-compliant)
+      // 🎯 API PROXY ONLY: No fallback to direct fetch for cleaner testing
       if (this.apiProxy && this.authContext) {
         try {
-          console.log('[AuthenticationService] Using API proxy for communities');
-          const proxyResponse = await this.apiProxy.makeApiRequest({
-            method: 'getUserCommunities',
-            userId: this.authContext.userId,
-            communityId: this.authContext.communityId,
-            params: {
-              sessionToken: this.authContext.sessionToken
-            }
+          console.log('[AuthenticationService] Using API proxy with retry logic for communities');
+          const proxyResponse = await this.makeApiCallWithRetry('getUserCommunities', {
+            sessionToken: this.authContext.sessionToken
           });
 
-          if (proxyResponse.success && proxyResponse.data?.userCommunities) {
+          if (proxyResponse.data?.userCommunities) {
             console.log('[AuthenticationService] API proxy success:', proxyResponse.data.userCommunities.length, 'communities');
             return proxyResponse.data.userCommunities.map((community: any) => ({
               id: community.id,
@@ -203,38 +250,13 @@ export class AuthenticationService {
             }));
           }
         } catch (proxyError) {
-          console.log('[AuthenticationService] API proxy error, falling back to direct fetch:', proxyError);
+          console.log('[AuthenticationService] 🚫 API proxy failed after all retries for communities:', proxyError);
+          console.log('[AuthenticationService] 🚫 Giving up on community fetch - returning empty list');
+          return [];
         }
       }
 
-      // 🔄 FALLBACK: Direct fetch (works on non-CSP sites, auth iframe is same-domain)
-      console.log('[AuthenticationService] Using direct fetch for communities');
-      const response = await fetch(`${this.hostServiceUrl}/api/communities`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.authContext.sessionToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        console.error('[AuthenticationService] Failed to fetch communities:', response.status);
-        return [];
-      }
-
-      const data = await response.json();
-      
-      if (data.userCommunities && Array.isArray(data.userCommunities)) {
-        console.log('[AuthenticationService] Direct fetch success:', data.userCommunities.length, 'communities');
-        return data.userCommunities.map((community: any) => ({
-          id: community.id,
-          name: community.name,
-          logoUrl: community.logoUrl || null,
-          userRole: community.userRole || 'member',
-          isMember: community.isMember
-        }));
-      }
-
+      console.log('[AuthenticationService] 🚫 No API proxy available - returning empty communities');
       return [];
     } catch (error) {
       console.error('[AuthenticationService] Error fetching user communities:', error);
@@ -253,20 +275,15 @@ export class AuthenticationService {
         return null;
       }
 
-      // 🎯 NEW: Try API proxy first (CSP-compliant)
+      // 🎯 API PROXY ONLY: No fallback to direct fetch for cleaner testing
       if (this.apiProxy && this.authContext) {
         try {
-          console.log('[AuthenticationService] Using API proxy for profile');
-          const proxyResponse = await this.apiProxy.makeApiRequest({
-            method: 'getUserProfile',
-            userId: this.authContext.userId,
-            communityId: this.authContext.communityId,
-            params: {
-              sessionToken: this.authContext.sessionToken
-            }
+          console.log('[AuthenticationService] Using API proxy with retry logic for profile');
+          const proxyResponse = await this.makeApiCallWithRetry('getUserProfile', {
+            sessionToken: this.authContext.sessionToken
           });
 
-          if (proxyResponse.success && proxyResponse.data?.user) {
+          if (proxyResponse.data?.user) {
             console.log('[AuthenticationService] API proxy profile success');
             return {
               userId: proxyResponse.data.user.user_id,
@@ -280,43 +297,13 @@ export class AuthenticationService {
             };
           }
         } catch (proxyError) {
-          console.log('[AuthenticationService] API proxy profile error, falling back to direct fetch:', proxyError);
+          console.log('[AuthenticationService] 🚫 API proxy failed after all retries for profile:', proxyError);
+          console.log('[AuthenticationService] 🚫 Giving up on profile fetch - returning null');
+          return null;
         }
       }
 
-      // 🔄 FALLBACK: Direct fetch (works on non-CSP sites, auth iframe is same-domain)
-      console.log('[AuthenticationService] Using direct fetch for profile');
-      const response = await fetch(`${this.hostServiceUrl}/api/auth/validate-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionToken: this.authContext.sessionToken
-        })
-      });
-
-      if (!response.ok) {
-        console.error('[AuthenticationService] Failed to fetch user profile:', response.status);
-        return null;
-      }
-
-      const data = await response.json();
-      
-      if (data.user) {
-        console.log('[AuthenticationService] Direct fetch profile success');
-        return {
-          userId: data.user.user_id,
-          name: data.user.name,
-          profilePictureUrl: data.user.profile_picture_url || null,
-          identityType: data.user.identity_type || 'anonymous',
-          walletAddress: data.user.wallet_address || null,
-          ensDomain: data.user.ens_domain || null,
-          upAddress: data.user.up_address || null,
-          isAnonymous: data.user.is_anonymous
-        };
-      }
-
+      console.log('[AuthenticationService] 🚫 No API proxy available - returning null profile');
       return null;
     } catch (error) {
       console.error('[AuthenticationService] Error fetching user profile:', error);

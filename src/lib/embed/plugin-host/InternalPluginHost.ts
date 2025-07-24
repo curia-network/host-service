@@ -189,18 +189,21 @@ export class InternalPluginHost {
    */
   private async onAuthComplete(authData: any, context: InternalAuthContext): Promise<void> {
     console.log('[InternalPluginHost] Auth completion received from service');
-    
-    // Check for auth-only mode
     if (authData.mode === 'auth-only') {
       console.log('[InternalPluginHost] Auth-only mode - staying on auth phase');
       return;
     }
     
-    // Initialize community navigation (sidebar must exist before layout)
+    // 🎯 STEP 1: Prepare API proxy with early forum iframe creation
+    console.log('[InternalPluginHost] Step 1: Preparing API proxy server');
+    await this.prepareApiProxy();
+    
+    // 🎯 STEP 2: Initialize community navigation with working API proxy
+    console.log('[InternalPluginHost] Step 2: Fetching community/profile data via API proxy');
     await this.initializeCommunityNavigation();
     
-    // Switch to forum phase
-    console.log('[InternalPluginHost] Switching to forum phase');
+    // 🎯 STEP 3: Complete forum layout setup (sidebar now exists)
+    console.log('[InternalPluginHost] Step 3: Setting up final layout with sidebar');
     await this.switchToForum();
   }
 
@@ -289,6 +292,41 @@ export class InternalPluginHost {
   // ============================================================================
   // ORCHESTRATION METHODS - Compose services for complex operations
   // ============================================================================
+
+  /**
+   * Prepare API proxy by creating forum iframe (without layout setup)
+   * This ensures the API proxy server is ready before we fetch community/profile data
+   */
+  private async prepareApiProxy(): Promise<void> {
+    console.log('[InternalPluginHost] Preparing API proxy with early forum iframe creation');
+    
+    const authContext = this.authService.getAuthContext();
+    if (!authContext) {
+      console.error('[InternalPluginHost] Cannot prepare API proxy - no auth context');
+      return;
+    }
+
+    // Create forum iframe (hidden) just for API proxy functionality
+    const tempContainer = document.createElement('div');
+    tempContainer.style.display = 'none'; // Hide until full layout
+    this.container.appendChild(tempContainer);
+    
+    // Create forum iframe using service - this sets up the API proxy server
+    const proxyIframe = this.iframeManager.createForumIframe(
+      this.config,
+      authContext,
+      tempContainer
+    );
+    
+    // Track this iframe for community switching (using auth context community)
+    if (authContext.communityId) {
+      console.log(`[InternalPluginHost] Tracking proxy iframe for community: ${authContext.communityId}`);
+      this.communityIframes.set(authContext.communityId, proxyIframe);
+      this.activeCommunityId = authContext.communityId;
+    }
+    
+    console.log('[InternalPluginHost] API proxy prepared - forum iframe ready for API calls');
+  }
 
   /**
    * Initialize auth phase - now delegates to IframeManager service
@@ -564,22 +602,48 @@ export class InternalPluginHost {
     // Get the iframe container
     const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
     
-    // Create forum iframe using service
-    const initialIframe = this.iframeManager.createForumIframe(
-      this.config,
-      authContext,
-      iframeContainer as HTMLElement
-    );
+    // Check if we already have an iframe from prepareApiProxy()
+    const existingIframe = authContext.communityId ? this.communityIframes.get(authContext.communityId) : null;
     
-    // Track the initial forum iframe for community switching
-    if (authContext.communityId) {
-      console.log(`[MULTI-IFRAME] Tracking initial forum iframe for community: ${authContext.communityId}`);
-      this.communityIframes.set(authContext.communityId, initialIframe);
-      this.activeCommunityId = authContext.communityId;
-      console.log(`[MULTI-IFRAME] Set active community to: ${authContext.communityId}`);
+    let initialIframe: HTMLIFrameElement;
+    
+    if (existingIframe) {
+      console.log('[InternalPluginHost] Reusing existing forum iframe from API proxy preparation');
+      
+      // Move iframe from temp container to proper layout container
+      const tempContainer = existingIframe.parentElement;
+      if (tempContainer) {
+        tempContainer.removeChild(existingIframe);
+        // Remove the temporary container
+        tempContainer.parentElement?.removeChild(tempContainer);
+      }
+      
+      // Show the iframe and add to proper container
+      existingIframe.style.display = 'block';
+      (iframeContainer as HTMLElement).appendChild(existingIframe);
+      
+      initialIframe = existingIframe;
     } else {
-      console.log(`[MULTI-IFRAME] No community ID in auth context - initial iframe not tracked`);
+      console.log('[InternalPluginHost] Creating new forum iframe (no existing iframe found)');
+      
+      // Create forum iframe using service
+      initialIframe = this.iframeManager.createForumIframe(
+        this.config,
+        authContext,
+        iframeContainer as HTMLElement
+      );
+      
+      // Track the initial forum iframe for community switching
+      if (authContext.communityId) {
+        console.log(`[MULTI-IFRAME] Tracking new forum iframe for community: ${authContext.communityId}`);
+        this.communityIframes.set(authContext.communityId, initialIframe);
+        this.activeCommunityId = authContext.communityId;
+      }
     }
+    
+    // Ensure API proxy is pointing to the correct iframe (important for reused iframes)
+    this.apiProxy.setActiveIframe(initialIframe);
+    console.log('[InternalPluginHost] API proxy confirmed for final forum iframe');
     
     console.log('[InternalPluginHost] Forum phase setup complete');
   }

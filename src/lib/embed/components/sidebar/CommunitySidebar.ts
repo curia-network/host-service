@@ -234,7 +234,7 @@ export class CommunitySidebar {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
+      font-size: 24px;
       transition: all 0.25s ease;
       cursor: pointer;
     `;

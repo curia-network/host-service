@@ -192,7 +192,7 @@ export class MobileProfileDrawer {
         color: white;
         font-weight: 600;
         font-size: 24px;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
       `;
       avatar.appendChild(initials);
     }
@@ -322,7 +322,7 @@ export class MobileProfileDrawer {
         color: white;
         font-weight: 600;
         font-size: 12px;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
       `;
       avatar.appendChild(initials);
     }

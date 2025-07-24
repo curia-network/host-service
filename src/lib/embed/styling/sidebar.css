@@ -2,30 +2,30 @@
  * Community Sidebar Styles
  * Extracted from InternalPluginHost.ts for better maintainability
  * 
- * Responsive Design System using rem units
- * Benefits: Scales with user's font preferences, accessible, maintainable
- * All values scale proportionally if user changes browser font size
+ * Responsive Design System using absolute px units
+ * Benefits: Complete isolation from parent site, consistent rendering
+ * No dependency on parent's font-size settings
  */
 
 .curia-community-nav {
-  /* Responsive sidebar dimensions */
-  --sidebar-width: 5rem;        /* 80px @ 16px base */
-  --sidebar-padding: 1rem;      /* 16px @ 16px base */
+  /* Responsive sidebar dimensions - absolute px units */
+  --sidebar-width: 80px;        /* Fixed width for consistency */
+  --sidebar-padding: 16px;      /* Fixed padding */
   
-  /* Community icon dimensions */
-  --icon-size: 3rem;            /* 48px @ 16px base */
-  --icon-image-size: 2.75rem;   /* 44px @ 16px base */
-  --icon-emoji-size: 1.5rem;    /* 24px @ 16px base */
-  --icon-border-radius: 0.75rem; /* 12px @ 16px base */
+  /* Community icon dimensions - absolute px units */
+  --icon-size: 48px;            /* Fixed icon size */
+  --icon-image-size: 44px;      /* Fixed image size */
+  --icon-emoji-size: 24px;      /* Fixed emoji size */
+  --icon-border-radius: 12px;   /* Fixed border radius */
   
-  /* Consistent spacing system */
-  --space-xs: 0.5rem;           /* 8px */
-  --space-sm: 0.75rem;          /* 12px */
-  --space-md: 1rem;             /* 16px */
-  --space-lg: 1.25rem;          /* 20px */
+  /* Consistent spacing system - absolute px units */
+  --space-xs: 8px;              /* Extra small spacing */
+  --space-sm: 12px;             /* Small spacing */
+  --space-md: 16px;             /* Medium spacing */
+  --space-lg: 20px;             /* Large spacing */
   
-  /* Profile section */
-  --profile-height: 4rem;       /* 64px @ 16px base */
+  /* Profile section - absolute px units */
+  --profile-height: 64px;       /* Fixed profile height */
   
   /* Main sidebar layout */
   width: var(--sidebar-width);
@@ -38,8 +38,8 @@
     var(--sidebar-bg-to, #f1f5f9) 100%);
   border-right: 1px solid var(--sidebar-border, rgba(148, 163, 184, 0.2));
   box-shadow: 
-    inset 0.125rem 0 0.25rem rgba(0, 0, 0, 0.05),
-    inset 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
+    inset 2px 0 4px rgba(0, 0, 0, 0.05),
+    inset 0 2px 4px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
   padding: var(--sidebar-padding);
@@ -57,15 +57,15 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--sidebar-border) transparent;
-  padding: 0 0.25rem;
-  margin: 0 -0.25rem;
+  padding: 0 4px;
+  margin: 0 -4px;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 14px;
 }
 
 .community-list-container::-webkit-scrollbar {
-  width: 0.375rem;
+  width: 6px;
 }
 
 .community-list-container::-webkit-scrollbar-track {
@@ -74,7 +74,7 @@
 
 .community-list-container::-webkit-scrollbar-thumb {
   background: var(--sidebar-border);
-  border-radius: 0.1875rem;
+  border-radius: 3px;
 }
 
 .community-list-container::-webkit-scrollbar-thumb:hover {
@@ -99,19 +99,19 @@
   overflow: visible;
   user-select: none;
   flex-shrink: 0;
-  border: 0.125rem solid transparent;
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
 }
 
 .community-item.active {
   border-color: var(--item-active-border);
-  box-shadow: 0 0.25rem 0.75rem var(--item-active-shadow), 0 0 0 0.0625rem var(--item-active-border);
+  box-shadow: 0 4px 12px var(--item-active-shadow), 0 0 0 1px var(--item-active-border);
 }
 
 .community-item:hover:not(.active) {
-  transform: scale(1.08) translateY(-0.0625rem);
-  box-shadow: 0 0.375rem 1.25rem rgba(0, 0, 0, 0.15);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* Community item hover effects */
@@ -130,8 +130,8 @@
   width: var(--icon-image-size);
   height: var(--icon-image-size);
   object-fit: cover;
-  border-radius: 0.625rem;
-  margin: 0.125rem;
+  border-radius: 10px;
+  margin: 2px;
   flex-shrink: 0;
 }
 

@@ -6,6 +6,8 @@
 export * from './utils';
 
 // Import CSS files as text strings (esbuild loader: '.css': 'text')
+// CRITICAL: Reset must come first to establish complete CSS isolation
+import resetCSS from './reset.css';
 import stylesCSS from './styles.css';
 import sidebarCSS from './sidebar.css';
 import previewCSS from './preview.css';
@@ -19,7 +21,9 @@ import darkThemeCSS from './themes/dark.css';
  */
 function getCSSContent(): string {
   // Combine all CSS files in the correct order
+  // Reset MUST be first to ensure complete isolation
   return [
+    resetCSS,       // 🎯 CRITICAL: Complete CSS reset and isolation - MUST BE FIRST
     stylesCSS,      // Main CSS entry point
     sidebarCSS,     // Base sidebar component styles
     previewCSS,     // Community preview styles

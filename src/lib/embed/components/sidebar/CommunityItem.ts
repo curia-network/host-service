@@ -137,14 +137,14 @@ export class CommunityItem {
     indicator.className = 'online-indicator';
     indicator.style.cssText = `
       position: absolute;
-      top: -0.5em;
-      right: -0.5em;
-      width: 1em;
-      height: 1em;
+      top: -8px;
+      right: -8px;
+      width: 16px;
+      height: 16px;
       background: #10b981;
-      border: 0.125em solid var(--sidebar-bg-from, #f8fafc);
+      border: 2px solid var(--sidebar-bg-from, #f8fafc);
       border-radius: 50%;
-      box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.15);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
       z-index: 20;
       overflow: visible;
     `;

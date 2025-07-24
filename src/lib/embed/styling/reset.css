@@ -1,0 +1,190 @@
+/*
+ * Curia Embed CSS Isolation Layer - SURGICAL APPROACH
+ * 
+ * STRATEGY: Only block parent interference, preserve our design system
+ * This reset targets ONLY the properties that commonly cause inheritance issues
+ */
+
+/* ==========================================================================
+   CSS CONTAINMENT & ISOLATION - Keep this, it's essential
+   ========================================================================== */
+
+.curia-embed-container {
+  /* CSS Containment - Isolates layout, style, and paint from parent */
+  contain: layout style paint;
+  
+  /* Create new stacking context - prevents z-index conflicts */
+  isolation: isolate;
+  
+  /* Establish positioning context for absolute children */
+  position: relative;
+  
+  /* Prevent parent flexbox/grid from affecting our layout */
+  flex-shrink: 0;
+  
+  /* Block inheritance of parent transforms that could break fixed positioning */
+  transform: translateZ(0);
+}
+
+/* ==========================================================================
+   SURGICAL RESET - Only target problematic inheritance
+   ========================================================================== */
+
+/* Target all elements within embed + portal elements outside embed */
+.curia-embed-container,
+.curia-embed-container *,
+.mobile-community-picker-overlay,
+.mobile-community-picker-overlay *,
+.mobile-profile-drawer-overlay,
+.mobile-profile-drawer-overlay *,
+.community-preview,
+.community-preview *,
+.user-profile-menu,
+.user-profile-menu * {
+  
+  /* ==========================================================================
+     BOX MODEL PROTECTION - Critical for layout integrity
+     ========================================================================== */
+  
+  /* Force border-box - prevents layout breaks from parent content-box */
+  box-sizing: border-box !important;
+  
+  /* ==========================================================================
+     TYPOGRAPHY BASELINE - Prevent font chaos from parent
+     ========================================================================== */
+  
+  /* Reset only the most problematic font properties */
+  text-decoration: none !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  text-indent: 0 !important;
+  text-shadow: none !important;
+  
+  /* Font rendering optimization */
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  
+  /* ==========================================================================
+     LAYOUT INTERFERENCE PROTECTION
+     ========================================================================== */
+  
+  /* Reset floats and clears that could break our layout */
+  float: none !important;
+  clear: none !important;
+  
+  /* ==========================================================================
+     ANIMATION/TRANSITION INTERFERENCE
+     ========================================================================== */
+  
+  /* Reset will-change that could interfere */
+  will-change: auto !important;
+}
+
+/* ==========================================================================
+   PORTAL ELEMENT ISOLATION - Keep this for modals/tooltips
+   ========================================================================== */
+
+.mobile-community-picker-overlay,
+.mobile-profile-drawer-overlay,
+.community-preview,
+.user-profile-menu {
+  /* Create isolated rendering context */
+  contain: layout style paint;
+  isolation: isolate;
+  
+  /* Ensure proper stacking */
+  position: fixed;
+  z-index: 999999;
+  
+  /* Prevent parent transforms from affecting positioning */
+  transform: translateZ(0);
+}
+
+/* ==========================================================================
+   EMBED DESIGN SYSTEM - Apply our actual styles
+   ========================================================================== */
+
+/* Apply our design system to embed container */
+.curia-embed-container {
+  /* Typography foundation */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  
+  /* Remove any inherited backgrounds */
+  background: transparent;
+}
+
+/* Apply design system to portal elements */
+.mobile-community-picker-overlay,
+.mobile-profile-drawer-overlay,
+.community-preview,
+.user-profile-menu {
+  /* Typography foundation */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #1f2937 !important;
+  
+  /* Clean background */
+  background: transparent !important;
+}
+
+/* Ensure all embed children inherit proper typography */
+.curia-embed-container *,
+.mobile-community-picker-overlay *,
+.mobile-profile-drawer-overlay *,
+.community-preview *,
+.user-profile-menu * {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* ==========================================================================
+   SPECIFIC ELEMENT RESETS - Only what's necessary
+   ========================================================================== */
+
+/* Reset button appearance */
+.curia-embed-container button,
+.mobile-community-picker-overlay button,
+.mobile-profile-drawer-overlay button,
+.community-preview button,
+.user-profile-menu button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Reset input appearance */
+.curia-embed-container input,
+.curia-embed-container textarea,
+.curia-embed-container select,
+.mobile-community-picker-overlay input,
+.mobile-community-picker-overlay textarea,
+.mobile-community-picker-overlay select,
+.mobile-profile-drawer-overlay input,
+.mobile-profile-drawer-overlay textarea,
+.mobile-profile-drawer-overlay select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Reset list styles only if problematic */
+.curia-embed-container ul,
+.curia-embed-container ol {
+  list-style: none;
+}
+
+/* Reset link colors */
+.curia-embed-container a,
+.mobile-community-picker-overlay a,
+.mobile-profile-drawer-overlay a,
+.community-preview a,
+.user-profile-menu a {
+  color: inherit;
+  text-decoration: none;
+} 

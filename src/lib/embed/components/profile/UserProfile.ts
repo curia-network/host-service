@@ -130,7 +130,7 @@ export class UserProfileComponent {
       color: white;
       font-weight: 600;
       font-size: 18px;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     `;
     avatar.appendChild(initials);
   }

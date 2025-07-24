@@ -8,8 +8,8 @@
   position: fixed;
   min-width: 280px;
   max-width: 320px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgb(255, 255, 255);  /* Solid white background */
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 
@@ -23,23 +23,24 @@
   backdrop-filter: blur(12px);
   
   /* Define CSS variables locally since menu is rendered outside .curia-community-nav scope */
-  --preview-bg: rgba(255, 255, 255, 0.95);
-  --preview-border: rgba(148, 163, 184, 0.2);
-  --preview-text: #1f2937;
-  --preview-text-muted: #6b7280;
-  --item-hover-bg: rgba(255, 255, 255, 0.95);
+  --preview-bg: rgb(255, 255, 255);
+  --preview-border: rgba(148, 163, 184, 0.3);
+  --preview-text: #1f2937;  /* Dark gray for high contrast on white */
+  --preview-text-muted: #4b5563;  /* Darker muted text for better readability */
+  --item-hover-bg: rgba(249, 250, 251, 1);  /* Solid light gray hover */
 }
 
 /* Dark theme support for profile menu */
-[data-theme="dark"] .user-profile-menu {
-  background: rgba(31, 41, 55, 0.95);
-  border: 1px solid rgba(75, 85, 99, 0.3);
+[data-theme="dark"] .user-profile-menu,
+.dark .user-profile-menu {
+  background: rgb(31, 41, 55);  /* Solid background - no transparency issues */
+  border: 1px solid rgba(75, 85, 99, 0.5);
   
-  --preview-bg: rgba(31, 41, 55, 0.95);
-  --preview-border: rgba(75, 85, 99, 0.3);
-  --preview-text: #f9fafb;
-  --preview-text-muted: #9ca3af;
-  --item-hover-bg: rgba(55, 65, 81, 0.8);
+  --preview-bg: rgb(31, 41, 55);
+  --preview-border: rgba(75, 85, 99, 0.5);
+  --preview-text: #ffffff;  /* Pure white for maximum contrast */
+  --preview-text-muted: #d1d5db;  /* Much lighter gray for better readability */
+  --item-hover-bg: rgba(55, 65, 81, 1);  /* Solid hover state */
 }
 
 .user-profile-menu.show {
@@ -138,7 +139,6 @@
 .profile-menu-sessions {
   margin: 16px 0;
   padding-top: 16px;
-  border-top: 1px solid var(--preview-border);
 }
 
 .profile-menu-section-label {

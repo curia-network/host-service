@@ -206,6 +206,12 @@ export class UserProfileComponent {
     const menu = document.createElement('div');
     menu.className = 'user-profile-menu';
     
+    // 🎯 DETECT AND APPLY THEME - This is why the colors weren't working!
+    const isDarkTheme = this.detectDarkTheme();
+    if (isDarkTheme) {
+      menu.setAttribute('data-theme', 'dark');
+    }
+    
     // Position menu relative to trigger element
     this.positionMenu(menu, triggerElement);
 
@@ -318,6 +324,36 @@ export class UserProfileComponent {
   }
 
   /**
+   * Detect if dark theme should be used
+   * Uses same logic as InternalPluginHost
+   */
+  private detectDarkTheme(): boolean {
+    // Try to get theme from script tag (same as embed config parsing)
+    const scripts = document.querySelectorAll('script[data-theme]');
+    let configTheme = 'light';
+    
+    // Find the most recent script with data-theme (our embed script)
+    for (let i = scripts.length - 1; i >= 0; i--) {
+      const theme = scripts[i].getAttribute('data-theme');
+      if (theme) {
+        configTheme = theme;
+        break;
+      }
+    }
+    
+    // Handle auto theme detection
+    if (configTheme === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    
+    return configTheme === 'dark';
+  }
+
+  /**
    * Create the menu actions section  
    */
   private createMenuActions(): string {
@@ -326,10 +362,6 @@ export class UserProfileComponent {
         <button class="profile-menu-action" data-action="add-session">
           <div class="profile-menu-action-icon">➕</div>
           <span>Add Another Account</span>
-        </button>
-        <button class="profile-menu-action" data-action="settings">
-          <div class="profile-menu-action-icon">⚙️</div>
-          <span>Settings</span>
         </button>
         <button class="profile-menu-action" data-action="sign-out">
           <div class="profile-menu-action-icon">🚪</div>

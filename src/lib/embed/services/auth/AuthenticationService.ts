@@ -12,6 +12,7 @@
  */
 
 import { sessionManager } from '../../../SessionManager';
+import { ApiProxyClient } from '@curia_/iframe-api-proxy';
 
 export interface InternalAuthContext {
   userId: string;
@@ -67,13 +68,16 @@ export class AuthenticationService {
   private crossTabListener?: (event: Event) => void;
   private sessionManagerSubscription?: () => void;
   private lastActiveSessionToken: string | null = null;
+  private apiProxy: ApiProxyClient | null = null;  // 🆕 NEW - For CSP-compliant API calls
 
   constructor(
     hostServiceUrl: string, 
-    callbacks: AuthenticationCallbacks = {}
+    callbacks: AuthenticationCallbacks = {},
+    apiProxy?: ApiProxyClient  // 🆕 NEW - Optional API proxy for CSP compliance
   ) {
     this.hostServiceUrl = hostServiceUrl;
     this.callbacks = callbacks;
+    this.apiProxy = apiProxy || null;  // 🆕 NEW - Store the API proxy instance
     
     // Subscribe to SessionManager changes to trigger session switching
     this.setupSessionManagerSubscription();
@@ -175,7 +179,35 @@ export class AuthenticationService {
         return [];
       }
 
-      // 🎯 Direct fetch (works on non-CSP sites, auth iframe is same-domain)
+      // 🎯 NEW: Try API proxy first (CSP-compliant)
+      if (this.apiProxy && this.authContext) {
+        try {
+          console.log('[AuthenticationService] Using API proxy for communities');
+          const proxyResponse = await this.apiProxy.makeApiRequest({
+            method: 'getUserCommunities',
+            userId: this.authContext.userId,
+            communityId: this.authContext.communityId,
+            params: {
+              sessionToken: this.authContext.sessionToken
+            }
+          });
+
+          if (proxyResponse.success && proxyResponse.data?.userCommunities) {
+            console.log('[AuthenticationService] API proxy success:', proxyResponse.data.userCommunities.length, 'communities');
+            return proxyResponse.data.userCommunities.map((community: any) => ({
+              id: community.id,
+              name: community.name,
+              logoUrl: community.logoUrl || null,
+              userRole: community.userRole || 'member',
+              isMember: community.isMember
+            }));
+          }
+        } catch (proxyError) {
+          console.log('[AuthenticationService] API proxy error, falling back to direct fetch:', proxyError);
+        }
+      }
+
+      // 🔄 FALLBACK: Direct fetch (works on non-CSP sites, auth iframe is same-domain)
       console.log('[AuthenticationService] Using direct fetch for communities');
       const response = await fetch(`${this.hostServiceUrl}/api/communities`, {
         method: 'GET',
@@ -221,7 +253,38 @@ export class AuthenticationService {
         return null;
       }
 
-      // 🎯 Direct fetch (works on non-CSP sites, auth iframe is same-domain)
+      // 🎯 NEW: Try API proxy first (CSP-compliant)
+      if (this.apiProxy && this.authContext) {
+        try {
+          console.log('[AuthenticationService] Using API proxy for profile');
+          const proxyResponse = await this.apiProxy.makeApiRequest({
+            method: 'getUserProfile',
+            userId: this.authContext.userId,
+            communityId: this.authContext.communityId,
+            params: {
+              sessionToken: this.authContext.sessionToken
+            }
+          });
+
+          if (proxyResponse.success && proxyResponse.data?.user) {
+            console.log('[AuthenticationService] API proxy profile success');
+            return {
+              userId: proxyResponse.data.user.user_id,
+              name: proxyResponse.data.user.name,
+              profilePictureUrl: proxyResponse.data.user.profile_picture_url || null,
+              identityType: proxyResponse.data.user.identity_type || 'anonymous',
+              walletAddress: proxyResponse.data.user.wallet_address || null,
+              ensDomain: proxyResponse.data.user.ens_domain || null,
+              upAddress: proxyResponse.data.user.up_address || null,
+              isAnonymous: proxyResponse.data.user.is_anonymous
+            };
+          }
+        } catch (proxyError) {
+          console.log('[AuthenticationService] API proxy profile error, falling back to direct fetch:', proxyError);
+        }
+      }
+
+      // 🔄 FALLBACK: Direct fetch (works on non-CSP sites, auth iframe is same-domain)
       console.log('[AuthenticationService] Using direct fetch for profile');
       const response = await fetch(`${this.hostServiceUrl}/api/auth/validate-session`, {
         method: 'POST',

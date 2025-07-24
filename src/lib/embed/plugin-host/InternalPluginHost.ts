@@ -145,7 +145,7 @@ export class InternalPluginHost {
       onSessionSwitch: this.onSessionSwitch.bind(this),
       onSignOut: this.onSignOut.bind(this),
       onCrossTabSessionUpdate: this.onCrossTabUpdate.bind(this)
-    });
+    }, this.apiProxy);  // 🆕 NEW - Pass API proxy for CSP-compliant calls
     
     this.messageRouter = new MessageRouter(
       this.iframeManager.getUid(),

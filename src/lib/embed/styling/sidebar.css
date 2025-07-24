@@ -27,6 +27,10 @@
   /* Profile section - absolute px units */
   --profile-height: 64px;       /* Fixed profile height */
   
+  /* Navigation section - absolute px units */
+  --nav-item-size: 40px;        /* Fixed nav item size */
+  --nav-icon-size: 20px;        /* Fixed nav icon size */
+  
   /* Main sidebar layout */
   width: var(--sidebar-width);
   height: 100%;
@@ -48,6 +52,96 @@
 
 .curia-community-nav::-webkit-scrollbar { 
   display: none; 
+}
+
+/* ==========================================
+ * LOGO SECTION
+ * ========================================== */
+
+.sidebar-logo-section {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md) 0;
+  margin-bottom: var(--space-sm);
+}
+
+.sidebar-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-logo-img:hover {
+  opacity: 1;
+}
+
+/* ==========================================
+ * NAVIGATION SECTION  
+ * ========================================== */
+
+.sidebar-nav-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.sidebar-nav-item {
+  width: var(--nav-item-size);
+  height: var(--nav-item-size);
+  min-width: var(--nav-item-size);
+  min-height: var(--nav-item-size);
+  margin: 0 auto; /* Center horizontally */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--sidebar-hover-bg, rgba(99, 102, 241, 0.1));
+  border-color: var(--sidebar-hover-border, rgba(99, 102, 241, 0.2));
+  transform: translateY(-1px);
+}
+
+.sidebar-nav-icon {
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sidebar-text, #64748b);
+}
+
+.sidebar-nav-item:hover .sidebar-nav-icon {
+  color: var(--sidebar-text-hover, #4f46e5);
+}
+
+.sidebar-nav-icon .lucide-icon {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* ==========================================
+ * DIVIDER
+ * ========================================== */
+
+.sidebar-divider {
+  width: calc(100% - 16px);
+  height: 1px;
+  margin: var(--space-sm) auto var(--space-md) auto;
+  background: var(--sidebar-border, rgba(148, 163, 184, 0.3));
+  border-radius: 1px;
 }
 
 /* Community list container - scrollable with badge space */

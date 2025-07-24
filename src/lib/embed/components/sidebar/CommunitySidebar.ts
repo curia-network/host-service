@@ -13,6 +13,7 @@ import { MobileBottomNav } from '../mobile/MobileBottomNav';
 import { MobileCommunityPicker } from '../mobile/MobileCommunityPicker';
 import { MobileProfileDrawer } from '../mobile/MobileProfileDrawer';
 import { injectStyles } from '../../styling';
+import { getIconHTML } from '../../styling/utils/icons';
 import { isMobileViewport, addResizeListener } from '../../utils/responsive';
 
 export interface CommunitySidebarOptions {
@@ -80,7 +81,19 @@ export class CommunitySidebar {
     const nav = document.createElement('div');
     nav.className = 'curia-community-nav';
     
-    // Create scrollable community list container
+    // 🎨 Add logo section at the top
+    const logoSection = this.renderLogoSection();
+    nav.appendChild(logoSection);
+    
+    // 🚀 Add navigation items section (search, messages, notifications)
+    const navItemsSection = this.renderNavigationItems();
+    nav.appendChild(navItemsSection);
+    
+    // ➖ Add divider
+    const divider = this.renderDivider();
+    nav.appendChild(divider);
+    
+    // 🏠 Create scrollable community list container
     const communityListContainer = document.createElement('div');
     communityListContainer.className = 'community-list-container';
     
@@ -455,5 +468,74 @@ export class CommunitySidebar {
     this.previewManager.hidePreview();
 
     this.container = null;
+  }
+
+  /**
+   * Render the Curia logo section at the top of the sidebar
+   */
+  private renderLogoSection(): HTMLElement {
+    const logoSection = document.createElement('div');
+    logoSection.className = 'sidebar-logo-section';
+    
+    const logoImg = document.createElement('img');
+    logoImg.src = '/curia.webp'; // 🎨 Using public/curia.webp
+    logoImg.alt = 'Curia';
+    logoImg.className = 'sidebar-logo-img';
+    
+    logoSection.appendChild(logoImg);
+    return logoSection;
+  }
+
+  /**
+   * Render navigation items (search, messages, notifications)
+   */
+  private renderNavigationItems(): HTMLElement {
+    const navSection = document.createElement('div');
+    navSection.className = 'sidebar-nav-section';
+    
+    // 🔍 Search
+    const searchItem = this.createNavItem('search', 'Search');
+    navSection.appendChild(searchItem);
+    
+    // 💬 Messages (Direct Messages)
+    const messagesItem = this.createNavItem('messages', 'Direct Messages');
+    navSection.appendChild(messagesItem);
+    
+    // 🔔 Notifications
+    const notificationsItem = this.createNavItem('notifications', 'Notifications');
+    navSection.appendChild(notificationsItem);
+    
+    return navSection;
+  }
+
+  /**
+   * Create a navigation item with icon and hover functionality
+   */
+  private createNavItem(iconName: 'search' | 'messages' | 'notifications', label: string): HTMLElement {
+    const item = document.createElement('div');
+    item.className = 'sidebar-nav-item';
+    item.title = label;
+    
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'sidebar-nav-icon';
+    iconContainer.innerHTML = getIconHTML(iconName, { size: 20 });
+    
+    item.appendChild(iconContainer);
+    
+    // Add click handler (stub for now)
+    item.addEventListener('click', () => {
+      console.log(`[CommunitySidebar] ${label} clicked - functionality not implemented yet`);
+    });
+    
+    return item;
+  }
+
+  /**
+   * Render divider between nav items and community list
+   */
+  private renderDivider(): HTMLElement {
+    const divider = document.createElement('div');
+    divider.className = 'sidebar-divider';
+    return divider;
   }
 } 

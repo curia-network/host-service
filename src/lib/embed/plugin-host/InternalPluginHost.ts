@@ -172,12 +172,50 @@ export class InternalPluginHost {
   private initialize(): void {
     console.log('[InternalPluginHost] Initializing embed');
     
+    // 🎯 CRITICAL FIX: Apply theme to document early (fixes community sidebar and profile menu)
+    this.applyThemeToDocument();
+    
     // Setup message listener and cross-tab sync
     this.messageRouter.setupMessageListener();
     this.authService.setupCrossTabSessionListener();
     
     // Create and display auth iframe
     this.initializeAuthPhase();
+  }
+
+  /**
+   * Resolve theme from config and system preferences
+   * Extracted from getThemeAwareBackground for reuse
+   */
+  private resolveTheme(): 'light' | 'dark' {
+    let resolvedTheme = this.config.theme || 'light';
+    if (resolvedTheme === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        resolvedTheme = 'dark';
+      } else {
+        resolvedTheme = 'light';
+      }
+      console.log('[InternalPluginHost] Resolved auto theme to:', resolvedTheme);
+    }
+    return resolvedTheme as 'light' | 'dark';
+  }
+
+  /**
+   * Apply resolved theme to document.documentElement 
+   * This fixes community sidebar and profile menu theming by matching Next.js page behavior
+   */
+  private applyThemeToDocument(): void {
+    const resolvedTheme = this.resolveTheme();
+    
+    console.log('[InternalPluginHost] Applying theme to document:', resolvedTheme);
+    
+    // Remove existing theme classes to avoid conflicts
+    document.documentElement.classList.remove('light', 'dark');
+    
+    // Add resolved theme class (matches EmbedThemeProvider behavior)
+    document.documentElement.classList.add(resolvedTheme);
+    
+    console.log('[InternalPluginHost] Document theme applied - sidebar and profile menu should now work correctly');
   }
 
   // ============================================================================
@@ -355,15 +393,8 @@ export class InternalPluginHost {
       return this.config.backgroundColor;
     }
     
-    // Determine theme
-    let resolvedTheme = this.config.theme || 'light';
-    if (resolvedTheme === 'auto') {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        resolvedTheme = 'dark';
-      } else {
-        resolvedTheme = 'light';
-      }
-    }
+    // Use centralized theme resolution
+    const resolvedTheme = this.resolveTheme();
     
     // Return theme-appropriate background
     return resolvedTheme === 'dark' ? '#0f172a' : '#ffffff';

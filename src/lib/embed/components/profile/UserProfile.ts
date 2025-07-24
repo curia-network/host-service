@@ -206,11 +206,9 @@ export class UserProfileComponent {
     const menu = document.createElement('div');
     menu.className = 'user-profile-menu';
     
-    // 🎯 DETECT AND APPLY THEME - This is why the colors weren't working!
-    const isDarkTheme = this.detectDarkTheme();
-    if (isDarkTheme) {
-      menu.setAttribute('data-theme', 'dark');
-    }
+    // 🎯 THEME CLEANUP: No longer need manual theme detection/setting
+    // InternalPluginHost now sets document.documentElement classes properly
+    // CSS selectors will work automatically: .dark .user-profile-menu { }
     
     // Position menu relative to trigger element
     this.positionMenu(menu, triggerElement);
@@ -364,35 +362,9 @@ export class UserProfileComponent {
     return Array.from(identityMap.values());
   }
 
-  /**
-   * Detect if dark theme should be used
-   * Uses same logic as InternalPluginHost
-   */
-  private detectDarkTheme(): boolean {
-    // Try to get theme from script tag (same as embed config parsing)
-    const scripts = document.querySelectorAll('script[data-theme]');
-    let configTheme = 'light';
-    
-    // Find the most recent script with data-theme (our embed script)
-    for (let i = scripts.length - 1; i >= 0; i--) {
-      const theme = scripts[i].getAttribute('data-theme');
-      if (theme) {
-        configTheme = theme;
-        break;
-      }
-    }
-    
-    // Handle auto theme detection
-    if (configTheme === 'auto') {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-    
-    return configTheme === 'dark';
-  }
+  // 🎯 REMOVED detectDarkTheme() method - no longer needed!
+  // InternalPluginHost now handles document theme classes properly
+  // CSS selectors automatically work: .dark .user-profile-menu { }
 
   /**
    * Create the menu actions section  

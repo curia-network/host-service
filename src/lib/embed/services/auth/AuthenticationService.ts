@@ -93,24 +93,53 @@ export class AuthenticationService {
   }
 
   /**
-   * Make API call with retry logic and exponential backoff
-   * Handles the race condition where forum iframe is created but ApiProxyServer isn't ready yet
+   * Make API call with multi-phase retry strategy optimized for fast user experience
+   * Phase 1: Every 50ms for first 500ms (10 attempts) - iframe usually ready quickly
+   * Phase 2: Every 100ms for next 500ms (4 attempts) - reasonable fallback  
+   * Phase 3: Every 200ms for next 1000ms (4 attempts) - persistence for edge cases
+   * Phase 4: Final attempt at 3000ms (1 attempt) - last chance
    */
   private async makeApiCallWithRetry(
     method: 'getUserCommunities' | 'getUserProfile', 
-    params: any, 
-    maxRetries: number = 3
+    params: any
   ): Promise<any> {
     if (!this.apiProxy || !this.authContext) {
       throw new Error('API proxy or auth context not available');
     }
 
-    console.log(`[AuthenticationService] 🔄 Starting API proxy calls for ${method} (max ${maxRetries} attempts)`);
+    // Define retry schedule: [delay_ms, phase_name]
+    const retrySchedule: Array<[number, string]> = [
+      // Phase 1: Aggressive early attempts (every 50ms for 500ms)
+      [0, 'Phase1'], [50, 'Phase1'], [100, 'Phase1'], [150, 'Phase1'], [200, 'Phase1'],
+      [250, 'Phase1'], [300, 'Phase1'], [350, 'Phase1'], [400, 'Phase1'], [450, 'Phase1'],
+      // Phase 2: Moderate fallback (every 100ms for next 500ms) 
+      [600, 'Phase2'], [700, 'Phase2'], [800, 'Phase2'], [900, 'Phase2'],
+      // Phase 3: Patient persistence (every 200ms for next 1000ms)
+      [1200, 'Phase3'], [1400, 'Phase3'], [1600, 'Phase3'], [1800, 'Phase3'],
+      // Phase 4: Final attempt
+      [3000, 'Phase4']
+    ];
+
+    console.log(`[AuthenticationService] 🔄 Starting multi-phase API proxy calls for ${method} (${retrySchedule.length} attempts over 3s)`);
+    
+    const startTime = Date.now();
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (let i = 0; i < retrySchedule.length; i++) {
+      const [targetDelay, phase] = retrySchedule[i];
+      const attempt = i + 1;
+      
+      // Wait for the target delay from start time
+      const elapsed = Date.now() - startTime;
+      const waitTime = Math.max(0, targetDelay - elapsed);
+      
+      if (waitTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+
       try {
-        console.log(`[AuthenticationService] 🎯 API proxy attempt ${attempt}/${maxRetries} for ${method}`);
+        const actualElapsed = Date.now() - startTime;
+        console.log(`[AuthenticationService] 🎯 ${phase} attempt ${attempt}/${retrySchedule.length} for ${method} (${actualElapsed}ms elapsed)`);
         
         const response = await this.apiProxy.makeApiRequest({
           method,
@@ -120,7 +149,8 @@ export class AuthenticationService {
         });
 
         if (response.success) {
-          console.log(`[AuthenticationService] ✅ API proxy SUCCESS for ${method} on attempt ${attempt}/${maxRetries}`);
+          const successTime = Date.now() - startTime;
+          console.log(`[AuthenticationService] ✅ API proxy SUCCESS for ${method} on ${phase} attempt ${attempt} (${successTime}ms total)`);
           return response;
         } else {
           throw new Error(response.error || `API request failed for ${method}`);
@@ -128,20 +158,19 @@ export class AuthenticationService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         
-        if (attempt === maxRetries) {
-          console.log(`[AuthenticationService] ❌ API proxy FINAL FAILURE for ${method} after ${maxRetries} attempts:`, lastError.message);
+        if (attempt === retrySchedule.length) {
+          const totalTime = Date.now() - startTime;
+          console.log(`[AuthenticationService] ❌ API proxy FINAL FAILURE for ${method} after ${retrySchedule.length} attempts (${totalTime}ms total):`, lastError.message);
           break;
         }
 
-        // Exponential backoff: 250ms, 500ms, 1000ms (max 1s to keep UI responsive)
-        const delay = Math.min(250 * Math.pow(2, attempt - 1), 1000);
-        console.log(`[AuthenticationService] ⏳ API proxy attempt ${attempt} failed for ${method}, retrying in ${delay}ms:`, lastError.message);
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Log failure but continue (no explicit delay - handled by schedule)
+        const failTime = Date.now() - startTime;
+        console.log(`[AuthenticationService] ⏳ ${phase} attempt ${attempt} failed for ${method} (${failTime}ms elapsed):`, lastError.message);
       }
     }
 
-    throw lastError || new Error(`API proxy failed after ${maxRetries} attempts for ${method}`);
+    throw lastError || new Error(`API proxy failed after ${retrySchedule.length} attempts for ${method}`);
   }
 
   /**

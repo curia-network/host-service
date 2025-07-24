@@ -177,7 +177,7 @@
 
 /* Mobile Community Picker Modal */
 .mobile-community-picker-overlay {
-  position: fixed;
+  position: absolute; /* 🎯 Changed from fixed - respects embed boundaries */
   top: 0;
   left: 0;
   right: 0;
@@ -395,7 +395,7 @@
 
 /* Mobile Profile Drawer */
 .mobile-profile-drawer-overlay {
-  position: fixed;
+  position: absolute; /* 🎯 Changed from fixed - respects embed boundaries */
   top: 0;
   left: 0;
   right: 0;

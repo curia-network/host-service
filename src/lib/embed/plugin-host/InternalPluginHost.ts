@@ -388,7 +388,8 @@ export class InternalPluginHost {
       },
       onMenuAction: (action: string) => this.handleMenuAction(action),
       getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId),
-      onPlusButtonClick: () => this.openDiscoveryModal()
+      onPlusButtonClick: () => this.openDiscoveryModal(),
+      embedContainer: this.embedContainer // 🎯 Pass embed container for mobile boundary respect
     });
 
     // Start initial 5-second polling to catch immediate community joins
@@ -515,6 +516,7 @@ export class InternalPluginHost {
       border-radius: ${this.config.borderRadius || '8px'};
       overflow: hidden;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      position: relative; /* 🎯 Positioning context for mobile modals */
     `;
 
     // Add navigation sidebar (always present)
@@ -534,9 +536,14 @@ export class InternalPluginHost {
     
       this.embedContainer.appendChild(iframeContainer);
 
-    // Replace original container content
-      this.container.innerHTML = '';
-      this.container.appendChild(this.embedContainer);
+        // Replace original container content
+    this.container.innerHTML = '';
+    this.container.appendChild(this.embedContainer);
+    
+    // 🎯 UPDATE SIDEBAR: Pass embedContainer reference for mobile boundary respect
+    if (this.communitySidebar) {
+      this.communitySidebar.updateEmbedContainer(this.embedContainer);
+    }
   }
 
   /**

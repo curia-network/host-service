@@ -23,6 +23,7 @@ export interface CommunitySidebarOptions {
   onMenuAction?: (action: string) => void;
   getIframeStatus?: (communityId: string) => boolean; // Simple function to check if iframe is loaded
   onPlusButtonClick?: () => void; // Callback for plus button click (community discovery)
+  embedContainer?: HTMLElement; // 🎯 Container for modal boundaries - no more hijacking!
 }
 
 export class CommunitySidebar {
@@ -30,6 +31,7 @@ export class CommunitySidebar {
   private currentCommunityId: string;
   private userProfile: UserProfile | null;
   private options: CommunitySidebarOptions;
+  private embedContainer: HTMLElement | null = null; // 🎯 Reference to embed container for boundary respect
   
   private container: HTMLElement | null = null;
   private communityItems: CommunityItem[] = [];
@@ -48,6 +50,7 @@ export class CommunitySidebar {
     this.currentCommunityId = options.currentCommunityId;
     this.userProfile = options.userProfile;
     this.options = options;
+    this.embedContainer = options.embedContainer || null; // 🎯 Store embed container reference
     this.previewManager = CommunityPreviewManager.getInstance();
     
     // Initialize mobile state
@@ -129,7 +132,8 @@ export class CommunitySidebar {
           if (this.options.onPlusButtonClick) {
             this.options.onPlusButtonClick();
           }
-        }
+        },
+        embedContainer: this.embedContainer // 🎯 Pass embed container for boundary respect
       });
 
       // Create mobile profile drawer
@@ -151,7 +155,8 @@ export class CommunitySidebar {
           if (this.mobileProfileDrawer) {
             this.mobileProfileDrawer.hide();
           }
-        }
+        },
+        embedContainer: this.embedContainer // 🎯 Pass embed container for boundary respect
       });
 
       // Create mobile bottom navigation
@@ -389,6 +394,24 @@ export class CommunitySidebar {
   }
 
 
+
+  /**
+   * Update the embed container reference for mobile component boundaries
+   * Called after embedContainer is created in InternalPluginHost
+   */
+  updateEmbedContainer(embedContainer: HTMLElement): void {
+    console.log('[CommunitySidebar] Updating embed container reference for mobile boundaries');
+    this.embedContainer = embedContainer;
+    
+    // Update existing mobile components with the new container reference
+    if (this.mobileCommunityPicker) {
+      (this.mobileCommunityPicker as any).embedContainer = embedContainer;
+    }
+    
+    if (this.mobileProfileDrawer) {
+      (this.mobileProfileDrawer as any).embedContainer = embedContainer;
+    }
+  }
 
   /**
    * Cleanup method for removing event listeners and DOM elements  

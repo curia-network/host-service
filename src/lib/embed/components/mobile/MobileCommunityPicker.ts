@@ -18,12 +18,14 @@ export interface MobileCommunityPickerOptions {
   onCommunitySelect: (community: UserCommunityMembership) => void;
   onClose: () => void;
   onPlusButtonClick?: () => void; // Same callback as desktop
+  embedContainer?: HTMLElement; // 🎯 Container for boundary-respecting modals
 }
 
 export class MobileCommunityPicker {
   private communities: UserCommunityMembership[];
   private currentCommunityId: string;
   private options: MobileCommunityPickerOptions;
+  private embedContainer: HTMLElement; // 🎯 Container for boundary-respecting modals
   private element: HTMLElement | null = null;
   private isVisible: boolean = false;
 
@@ -31,6 +33,7 @@ export class MobileCommunityPicker {
     this.communities = options.communities;
     this.currentCommunityId = options.currentCommunityId;
     this.options = options;
+    this.embedContainer = options.embedContainer || document.body; // 🎯 Fallback to document.body for backward compatibility
   }
 
   show(): void {
@@ -38,7 +41,7 @@ export class MobileCommunityPicker {
     
     this.isVisible = true;
     const modal = this.render();
-    document.body.appendChild(modal);
+    this.embedContainer.appendChild(modal); // 🎯 Respect embed boundaries - no more hijacking!
     
     // Trigger animation after DOM insertion
     requestAnimationFrame(() => {

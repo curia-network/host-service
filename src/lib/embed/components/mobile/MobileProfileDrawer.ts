@@ -17,11 +17,13 @@ export interface MobileProfileDrawerOptions {
   userProfile: UserProfile;
   onMenuAction: (action: string) => void;
   onClose: () => void;
+  embedContainer?: HTMLElement; // 🎯 Container for boundary-respecting modals
 }
 
 export class MobileProfileDrawer {
   private userProfile: UserProfile;
   private options: MobileProfileDrawerOptions;
+  private embedContainer: HTMLElement; // 🎯 Container for boundary-respecting modals
   private element: HTMLElement | null = null;
   private isVisible: boolean = false;
   
@@ -33,6 +35,7 @@ export class MobileProfileDrawer {
   constructor(options: MobileProfileDrawerOptions) {
     this.userProfile = options.userProfile;
     this.options = options;
+    this.embedContainer = options.embedContainer || document.body; // 🎯 Fallback to document.body for backward compatibility
     
     // Subscribe to session changes for reactive menu updates (same as desktop)
     this.sessionSubscription = this.sessionManager.subscribe((sessions, activeToken, activeSession) => {
@@ -49,7 +52,7 @@ export class MobileProfileDrawer {
     
     this.isVisible = true;
     const modal = this.render();
-    document.body.appendChild(modal);
+    this.embedContainer.appendChild(modal); // 🎯 Respect embed boundaries - no more hijacking!
     
     // Trigger animation after DOM insertion
     requestAnimationFrame(() => {

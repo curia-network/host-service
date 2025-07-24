@@ -12,6 +12,7 @@
  */
 
 import { sessionManager } from '../../../SessionManager';
+import { ApiProxyClient } from '@curia_/iframe-api-proxy'; // 🎯 Correct import path
 
 export interface InternalAuthContext {
   userId: string;
@@ -67,13 +68,23 @@ export class AuthenticationService {
   private crossTabListener?: (event: Event) => void;
   private sessionManagerSubscription?: () => void;
   private lastActiveSessionToken: string | null = null;
+  private apiProxy: ApiProxyClient | null = null; // Added apiProxy property
 
-  constructor(hostServiceUrl: string, callbacks: AuthenticationCallbacks = {}) {
+  constructor(
+    hostServiceUrl: string, 
+    callbacks: AuthenticationCallbacks = {},
+    apiProxy?: ApiProxyClient // 🎯 Accept the working API proxy instance
+  ) {
     this.hostServiceUrl = hostServiceUrl;
     this.callbacks = callbacks;
+    this.apiProxy = apiProxy || null; // 🎯 Store the working proxy
     
     // Subscribe to SessionManager changes to trigger session switching
     this.setupSessionManagerSubscription();
+    
+    console.log('[AuthenticationService] Initialized', { 
+      hasApiProxy: !!this.apiProxy // 🎯 Log proxy availability
+    });
   }
 
   /**
@@ -159,6 +170,7 @@ export class AuthenticationService {
 
   /**
    * Fetch user's community memberships
+   * Uses API proxy when available (CSP-safe), falls back to direct fetch for non-CSP sites
    */
   async fetchUserCommunities(): Promise<UserCommunityMembership[]> {
     try {
@@ -169,7 +181,38 @@ export class AuthenticationService {
         return [];
       }
 
-      // Make direct fetch call to /api/communities with auth
+      // 🎯 Try API proxy first (CSP-safe) - using the WORKING pattern from MessageRouter
+      if (this.apiProxy) {
+        console.log('[AuthenticationService] Using API proxy for getUserCommunities (CSP-safe)');
+        try {
+          const result = await this.apiProxy.makeApiRequest({
+            method: 'getUserCommunities' as any,
+            params: {},
+            communityId: this.authContext.communityId,
+            userId: this.authContext.userId
+          });
+
+          if (result.success && result.data?.userCommunities) {
+            console.log('[AuthenticationService] API proxy success:', result.data.userCommunities.length, 'communities');
+            return result.data.userCommunities.map((community: any) => ({
+              id: community.id,
+              name: community.name,
+              logoUrl: community.logoUrl || null,
+              userRole: community.userRole || 'member',
+              isMember: community.isMember
+            }));
+          } else {
+            console.warn('[AuthenticationService] API proxy result failed:', result.error);
+            // Fall through to direct fetch
+          }
+        } catch (proxyError) {
+          console.warn('[AuthenticationService] API proxy error, falling back to direct fetch:', proxyError);
+          // Fall through to direct fetch
+        }
+      }
+
+      // 🔄 Fallback: Direct fetch (will fail on CSP sites but works elsewhere)
+      console.log('[AuthenticationService] Using direct fetch for communities (may fail on CSP sites)');
       const response = await fetch(`${this.hostServiceUrl}/api/communities`, {
         method: 'GET',
         headers: {
@@ -186,12 +229,12 @@ export class AuthenticationService {
       const data = await response.json();
       
       if (data.userCommunities && Array.isArray(data.userCommunities)) {
-        console.log('[AuthenticationService] Fetched user communities:', data.userCommunities.length);
+        console.log('[AuthenticationService] Direct fetch success:', data.userCommunities.length, 'communities');
         return data.userCommunities.map((community: any) => ({
           id: community.id,
           name: community.name,
-          logoUrl: community.logoUrl,
-          userRole: community.userRole,
+          logoUrl: community.logoUrl || null,
+          userRole: community.userRole || 'member',
           isMember: community.isMember
         }));
       }
@@ -205,6 +248,7 @@ export class AuthenticationService {
 
   /**
    * Fetch user profile information
+   * Uses API proxy when available (CSP-safe), falls back to direct fetch for non-CSP sites
    */
   async fetchUserProfile(): Promise<UserProfile | null> {
     try {
@@ -213,7 +257,41 @@ export class AuthenticationService {
         return null;
       }
 
-      // Use the validate-session endpoint to get user profile data
+      // 🎯 Try API proxy first (CSP-safe) - using the WORKING pattern from MessageRouter
+      if (this.apiProxy) {
+        console.log('[AuthenticationService] Using API proxy for getUserProfile (CSP-safe)');
+        try {
+          const result = await this.apiProxy.makeApiRequest({
+            method: 'getUserProfile' as any,
+            params: { sessionToken: this.authContext.sessionToken },
+            communityId: this.authContext.communityId,
+            userId: this.authContext.userId
+          });
+
+          if (result.success && result.data?.user) {
+            console.log('[AuthenticationService] API proxy profile success');
+            return {
+              userId: result.data.user.user_id,
+              name: result.data.user.name,
+              profilePictureUrl: result.data.user.profile_picture_url || null,
+              identityType: result.data.user.identity_type || 'anonymous',
+              walletAddress: result.data.user.wallet_address || null,
+              ensDomain: result.data.user.ens_domain || null,
+              upAddress: result.data.user.up_address || null,
+              isAnonymous: result.data.user.is_anonymous
+            };
+          } else {
+            console.warn('[AuthenticationService] API proxy profile failed:', result.error);
+            // Fall through to direct fetch
+          }
+        } catch (proxyError) {
+          console.warn('[AuthenticationService] API proxy profile error, falling back to direct fetch:', proxyError);
+          // Fall through to direct fetch
+        }
+      }
+
+      // 🔄 Fallback: Direct fetch (will fail on CSP sites but works elsewhere)
+      console.log('[AuthenticationService] Using direct fetch for profile (may fail on CSP sites)');
       const response = await fetch(`${this.hostServiceUrl}/api/auth/validate-session`, {
         method: 'POST',
         headers: {
@@ -232,14 +310,15 @@ export class AuthenticationService {
       const data = await response.json();
       
       if (data.user) {
+        console.log('[AuthenticationService] Direct fetch profile success');
         return {
           userId: data.user.user_id,
           name: data.user.name,
-          profilePictureUrl: data.user.profile_picture_url,
-          identityType: data.user.identity_type,
-          walletAddress: data.user.wallet_address,
-          ensDomain: data.user.ens_domain,
-          upAddress: data.user.up_address,
+          profilePictureUrl: data.user.profile_picture_url || null,
+          identityType: data.user.identity_type || 'anonymous',
+          walletAddress: data.user.wallet_address || null,
+          ensDomain: data.user.ens_domain || null,
+          upAddress: data.user.up_address || null,
           isAnonymous: data.user.is_anonymous
         };
       }

@@ -234,7 +234,9 @@ export class MessageRouter {
       'getContextData',
       'getCommunityInfo',
       'giveRole',
-      'switchCommunity'
+      'switchCommunity',
+      'getUserCommunities',  // 🎯 For fetchUserCommunities() - bypasses CSP
+      'getUserProfile'       // 🎯 For fetchUserProfile() - bypasses CSP
     ];
     
     return supportedMethods.includes(method);

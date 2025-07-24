@@ -11,7 +11,8 @@
 .dark .curia-community-nav,
 .dark .curia-mobile-bottom-nav,
 .dark .mobile-community-picker-overlay,
-.dark .mobile-profile-drawer-overlay {
+.dark .mobile-profile-drawer-overlay,
+.dark.community-preview {
   --sidebar-bg-from: #1e293b;
   --sidebar-bg-to: #0f172a;
   --sidebar-border: rgba(71, 85, 105, 0.3);

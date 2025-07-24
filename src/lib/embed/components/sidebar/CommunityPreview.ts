@@ -23,6 +23,13 @@ export class CommunityPreview {
     const preview = document.createElement('div');
     preview.className = 'community-preview';
     
+    // 🎯 THEME FIX: Apply current theme class to preview card for CSS variable access
+    if (document.documentElement.classList.contains('dark')) {
+      preview.classList.add('dark');
+    } else {
+      preview.classList.add('light');
+    }
+    
     // Position the preview card relative to trigger element
     this.positionPreview(preview);
     

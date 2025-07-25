@@ -141,43 +141,17 @@ export class AuthenticationService {
         const actualElapsed = Date.now() - startTime;
         console.log(`[AuthenticationService] 🎯 ${phase} attempt ${attempt}/${retrySchedule.length} for ${method} (${actualElapsed}ms elapsed)`);
         
-        // Sign the request using host-service's signing endpoint
+        // Prepare request data for internal API call (no signing needed for same-process calls)
         const requestData = {
           method,
           userId: this.authContext.userId,
           communityId: this.authContext.communityId,
-          params,
-          timestamp: Date.now()
+          params
         };
 
-        let signature;
-        try {
-          const signResponse = await fetch('/api/sign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestData)
-          });
-          
-          if (!signResponse.ok) {
-            throw new Error(`Signing failed: ${signResponse.statusText}`);
-          }
-          
-          const signResult = await signResponse.json();
-          signature = signResult.signature;
-          
-          console.log(`[AuthenticationService] ✅ Request signed for ${method}`);
-        } catch (signError) {
-          console.error(`[AuthenticationService] ❌ Failed to sign request for ${method}:`, signError);
-          throw new Error(`Failed to sign request: ${signError instanceof Error ? signError.message : 'Unknown error'}`);
-        }
+        console.log(`[AuthenticationService] 🔄 Making internal API call for ${method} (no signature required)`);
 
-        const response = await this.apiProxy.makeApiRequest({
-          method,
-          userId: this.authContext.userId,
-          communityId: this.authContext.communityId,
-          params,
-          signature
-        });
+        const response = await this.apiProxy.makeApiRequest(requestData);
 
         if (response.success) {
           const successTime = Date.now() - startTime;

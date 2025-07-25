@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       userId: body.userId
     });
     
+    console.log('[SIGN DEBUG] Full request data being signed:', JSON.stringify(body, null, 2));
+    
     // Initialize CgPluginLibHost with host-service's keys
     const cgPluginLibHost = await CgPluginLibHost.initialize(privateKey, publicKey);
     

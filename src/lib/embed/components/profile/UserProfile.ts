@@ -301,11 +301,12 @@ export class UserProfileComponent {
    */
   private createAvailableSessions(): string {
     const activeToken = this.sessionManager.getActiveToken();
+    const activeSession = this.sessionManager.getActiveSession();
     console.log('[UserProfile] 🔧 Creating available sessions list (active token:', activeToken, ')');
     console.log('[UserProfile] 🔧 All sessions count:', this.allSessions.length);
     
     // 1. Filter out active session (it's shown in header)
-    const inactiveSessions = this.allSessions.filter(session => {
+    let inactiveSessions = this.allSessions.filter(session => {
       const isActive = session.sessionToken === activeToken;
       if (isActive) {
         console.log('[UserProfile] 🔧 Filtering out active session:', session.sessionToken, session.name);
@@ -315,7 +316,20 @@ export class UserProfileComponent {
     
     console.log('[UserProfile] 🔧 Inactive sessions count:', inactiveSessions.length);
     
-    // 2. 🎯 Deduplicate by actual identity (display-only filtering)
+    // 2. 🎯 NEW: If active session is anonymous, hide ALL other anonymous sessions
+    if (activeSession?.identityType === 'anonymous') {
+      const beforeCount = inactiveSessions.length;
+      inactiveSessions = inactiveSessions.filter(session => {
+        const isAnonymous = session.identityType === 'anonymous';
+        if (isAnonymous) {
+          console.log('[UserProfile] 🎯 Hiding anonymous session (active is anonymous):', session.sessionToken);
+        }
+        return !isAnonymous;
+      });
+      console.log('[UserProfile] 🎯 Anonymous session filtering: removed', beforeCount - inactiveSessions.length, 'sessions');
+    }
+    
+    // 3. 🎯 Deduplicate by actual identity (display-only filtering)
     // Note: deduplication now properly handles active session priority
     const uniqueSessions = this.deduplicateSessionsByIdentity(inactiveSessions);
     
@@ -358,15 +372,16 @@ export class UserProfileComponent {
 
   /**
    * Get unique identity key for session deduplication
+   * 🎯 FIX: Anonymous sessions are treated as one identity (no wallet differentiation)
    */
   private getIdentityKey(session: SessionData): string {
     switch (session.identityType) {
       case 'ens':
-        return `ens:${session.ensName}`;           // e.g., "ens:vitalik.eth"
+        return `ens:${session.ensName}`;           // e.g., "ens:vitalik.eth" (unique per ENS name)
       case 'universal_profile':
-        return `up:${session.upAddress}`;          // e.g., "up:0x123..."
+        return `up:${session.upAddress}`;          // e.g., "up:0x123..." (unique per UP address)
       case 'anonymous':
-        return `wallet:${session.walletAddress}`;  // e.g., "wallet:0x456..." (only one anon per wallet)
+        return 'anonymous';                        // 🎯 ALL anonymous sessions = same identity
       default:
         return `user:${session.userId}`;           // Fallback to userId
     }

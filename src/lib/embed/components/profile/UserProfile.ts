@@ -53,11 +53,16 @@ export class UserProfileComponent {
   
   /**
    * Refresh menu when sessions change
+   * 🎯 FIX: Enhanced logging and session data synchronization
    */
   private refreshMenu(): void {
     if (this.profileMenuElement && this.profileMenuElement.classList.contains('show')) {
       // Menu is currently open, update its content with fresh session data
-      console.log('[UserProfile] 🔧 Refreshing menu content with updated session data');
+      console.log('[UserProfile] 🔧 Refreshing open menu with updated session data');
+      
+      // Update our session cache first
+      this.allSessions = this.sessionManager.getAllSessions();
+      console.log('[UserProfile] 🔧 Updated session cache, count:', this.allSessions.length);
       
       const headerHtml = this.createActiveSessionHeader();
       const sessionsHtml = this.createAvailableSessions();
@@ -68,9 +73,12 @@ export class UserProfileComponent {
       // Re-attach event handlers since innerHTML replaced the content
       this.attachMenuHandlers(this.profileMenuElement);
       
-      console.log('[UserProfile] ✅ Menu content refreshed');
+      console.log('[UserProfile] ✅ Menu content refreshed with correct session data');
+    } else {
+      // Menu is not open, but still update our session cache for next time
+      this.allSessions = this.sessionManager.getAllSessions();
+      console.log('[UserProfile] 🔧 Updated session cache (menu closed), count:', this.allSessions.length);
     }
-    // If menu is not open, do nothing - it will get fresh data when opened next time
   }
 
   render(): HTMLElement {
@@ -228,12 +236,14 @@ export class UserProfileComponent {
 
   /**
    * Create the active session header section
+   * 🎯 FIX: Always use SessionManager as source of truth for active session
    */
   private createActiveSessionHeader(): string {
-    // 🔥 FIX: Get current active session from SessionManager instead of static userProfile
     const activeSession = this.sessionManager.getActiveSession();
+    console.log('[UserProfile] 🔧 Creating header for active session:', activeSession?.sessionToken, activeSession?.name);
     
     if (!activeSession) {
+      console.warn('[UserProfile] ⚠️ No active session found, falling back to userProfile data');
       // Fallback to static userProfile if no active session
       const userName = this.userProfile.name || 'Anonymous User';
       const hasProfileImage = !!this.userProfile.profilePictureUrl;
@@ -250,17 +260,24 @@ export class UserProfileComponent {
           </div>
           <div class="profile-menu-info">
             <h4>${userName}</h4>
-            <p>${this.getIdentityLabel()} • Active</p>
+            <p>${this.getIdentityLabel()} • Active (Fallback)</p>
           </div>
         </div>
       `;
     }
     
-    // Use active session data
+    // Use active session data - this should always be the source of truth
     const userName = activeSession.name || 'Anonymous User';
     const hasProfileImage = !!activeSession.profileImageUrl;
     const gradientClass = this.getGradientClass(userName);
     const gradientStyle = this.getGradientStyle(gradientClass);
+    
+    console.log('[UserProfile] ✅ Using active session data for header:', {
+      token: activeSession.sessionToken,
+      name: userName,
+      identityType: activeSession.identityType,
+      hasImage: hasProfileImage
+    });
     
     return `
       <div class="profile-menu-header">
@@ -280,19 +297,32 @@ export class UserProfileComponent {
 
   /**
    * Create the available sessions section
+   * 🎯 FIX: Ensure proper filtering and deduplication with active session priority
    */
   private createAvailableSessions(): string {
     const activeToken = this.sessionManager.getActiveToken();
+    console.log('[UserProfile] 🔧 Creating available sessions list (active token:', activeToken, ')');
+    console.log('[UserProfile] 🔧 All sessions count:', this.allSessions.length);
     
     // 1. Filter out active session (it's shown in header)
-    const inactiveSessions = this.allSessions.filter(session => 
-      session.sessionToken !== activeToken
-    );
+    const inactiveSessions = this.allSessions.filter(session => {
+      const isActive = session.sessionToken === activeToken;
+      if (isActive) {
+        console.log('[UserProfile] 🔧 Filtering out active session:', session.sessionToken, session.name);
+      }
+      return !isActive;
+    });
+    
+    console.log('[UserProfile] 🔧 Inactive sessions count:', inactiveSessions.length);
     
     // 2. 🎯 Deduplicate by actual identity (display-only filtering)
+    // Note: deduplication now properly handles active session priority
     const uniqueSessions = this.deduplicateSessionsByIdentity(inactiveSessions);
     
+    console.log('[UserProfile] 🔧 Unique sessions after deduplication:', uniqueSessions.length);
+    
     if (uniqueSessions.length === 0) {
+      console.log('[UserProfile] 🔧 No available sessions to show');
       return ''; // No available sessions section
     }
     
@@ -345,17 +375,41 @@ export class UserProfileComponent {
   /**
    * Deduplicate sessions by actual identity, keeping most recent for each unique identity
    * This is display-only filtering - all sessions remain in storage
+   * 🎯 FIX: Prioritize currently active session over lastAccessedAt
    */
   private deduplicateSessionsByIdentity(sessions: SessionData[]): SessionData[] {
     const identityMap = new Map<string, SessionData>();
+    const activeToken = this.sessionManager.getActiveToken();
     
     for (const session of sessions) {
       const identityKey = this.getIdentityKey(session);
-      
-      // Keep the most recent session for each unique identity
       const existing = identityMap.get(identityKey);
-      if (!existing || session.lastAccessedAt > existing.lastAccessedAt) {
+      
+      if (!existing) {
+        // First session for this identity
         identityMap.set(identityKey, session);
+      } else {
+        // Decide which session to keep for this identity
+        let shouldReplace = false;
+        
+        // 🎯 PRIORITY 1: Always keep the currently active session
+        if (session.sessionToken === activeToken) {
+          shouldReplace = true;
+          console.log('[UserProfile] 🎯 Keeping active session for identity:', identityKey, session.sessionToken);
+        } 
+        // 🎯 PRIORITY 2: Don't replace if existing is the active session
+        else if (existing.sessionToken === activeToken) {
+          shouldReplace = false;
+          console.log('[UserProfile] 🎯 Preserving active session for identity:', identityKey, existing.sessionToken);
+        }
+        // 🎯 PRIORITY 3: Fall back to lastAccessedAt for non-active sessions
+        else if (session.lastAccessedAt > existing.lastAccessedAt) {
+          shouldReplace = true;
+        }
+        
+        if (shouldReplace) {
+          identityMap.set(identityKey, session);
+        }
       }
     }
     

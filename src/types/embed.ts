@@ -82,11 +82,18 @@ export interface SignatureVerificationStepProps extends StepProps {
 }
 
 export interface CommunitySelectionStepProps extends StepProps {
-  onCommunitySelected: (communityId?: string) => void;
+  onCommunitySelected: (communityId?: string, community?: Community) => void;
   sessionToken?: string;
 }
 
 export interface AuthCompleteStepProps extends StepProps {
   profileData: ProfileData | null;
   communityId: string | null;
+  selectedCommunity: Community | null;
+}
+
+export interface ApiProxyReadyMessage {
+  type: 'curia-api-proxy-ready';
+  serverId: string;
+  timestamp: string;
 } 

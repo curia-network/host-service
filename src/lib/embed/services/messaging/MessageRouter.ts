@@ -38,6 +38,7 @@ export interface MessageRouterCallbacks {
   onCommunitySwitchRequest?: (communityId: string, options?: any) => Promise<any>;
   onCommunityDiscoveryComplete?: (discoveryData: any) => Promise<void>;
   onAddSessionComplete?: (sessionData: any) => Promise<void>;
+  onApiProxyReady?: (sourceWindow: Window) => void;
 }
 
 export class MessageRouter {
@@ -100,6 +101,15 @@ export class MessageRouter {
     if (event.data.type === 'curia-add-session-complete') {
       if (this.callbacks.onAddSessionComplete) {
         await this.callbacks.onAddSessionComplete(event.data);
+      }
+      return;
+    }
+
+    // Handle API proxy ready notification from iframe
+    if (event.data.type === 'curia-api-proxy-ready') {
+      console.log('[MessageRouter] API proxy ready notification received');
+      if (this.callbacks.onApiProxyReady) {
+        this.callbacks.onApiProxyReady(event.source as Window);
       }
       return;
     }

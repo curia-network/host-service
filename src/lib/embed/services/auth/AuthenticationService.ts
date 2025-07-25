@@ -280,6 +280,12 @@ export class AuthenticationService {
           }
         } catch (proxyError) {
           console.log('[AuthenticationService] 🚫 API proxy failed after all retries for communities:', proxyError);
+          
+          // 🎯 DEBUGGING: Log specific iframe availability issues
+          if (proxyError instanceof Error && proxyError.message.includes('Active iframe content window not available')) {
+            console.log('[AuthenticationService] 🔧 IFRAME ISSUE: API proxy iframe contentWindow not available - check iframe loading timing');
+          }
+          
           console.log('[AuthenticationService] 🚫 Giving up on community fetch - returning empty list');
           return [];
         }

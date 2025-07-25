@@ -184,6 +184,9 @@
   resolved "https://registry.npmjs.org/@curia_/iframe-api-proxy/-/iframe-api-proxy-1.1.1.tgz#4417b67cdc1ac3558e39f8c19f0a786e4e071afe"
   integrity sha512-OtKD4v6vsbERvJseHVIjUsNmLRNArf4c5EzJF3gHZy+ELLmw70BdkwMCv25Tn7aLotMoPvVSauAFkyoAslVXdw==
 
+"@curia_/iframe-api-proxy@file:../iframe-api-proxy":
+  version "1.1.1"
+
 "@ecies/ciphers@^0.2.3":
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/@ecies/ciphers/-/ciphers-0.2.4.tgz#20a4e51f61d521e5e311eb49385d93d91087de51"

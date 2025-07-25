@@ -167,11 +167,16 @@ export const CommunitySelectionStep: React.FC<CommunitySelectionStepProps> = ({
       // TODO: Join community API call
       console.log(`[Embed] Joining community: ${communityId}`);
       
+      // Find the full community object by ID
+      const allCommunities = [...userCommunities, ...availableCommunities];
+      const selectedCommunity = allCommunities.find(c => c.id === communityId);
+      console.log(`[Embed] Found community object:`, selectedCommunity);
+      
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Pass the selected community ID to the parent
-      onCommunitySelected(communityId);
+      // Pass both the community ID and the full community object to the parent
+      onCommunitySelected(communityId, selectedCommunity);
     } catch (error) {
       console.error('[Embed] Error joining community:', error);
       setIsJoining(false);

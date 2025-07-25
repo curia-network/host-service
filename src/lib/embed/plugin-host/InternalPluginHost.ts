@@ -156,7 +156,8 @@ export class InternalPluginHost {
         getAuthContext: () => this.authService.getAuthContext(),
         onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this),
         onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this),
-        onAddSessionComplete: this.handleAddSessionComplete.bind(this)
+        onAddSessionComplete: this.handleAddSessionComplete.bind(this),
+        onApiProxyReady: this.onApiProxyReady.bind(this)
       }
     );
     
@@ -356,6 +357,10 @@ export class InternalPluginHost {
       tempContainer
     );
     
+    // 🎯 CRITICAL FIX: Wait for API proxy ready notification instead of guessing
+    await this.waitForApiProxyReady(proxyIframe);
+    console.log('[InternalPluginHost] API proxy ready notification received - ready for API calls');
+    
     // Track this iframe for community switching (using auth context community)
     if (authContext.communityId) {
       console.log(`[InternalPluginHost] Tracking proxy iframe for community: ${authContext.communityId}`);
@@ -364,6 +369,54 @@ export class InternalPluginHost {
     }
     
     console.log('[InternalPluginHost] API proxy prepared - forum iframe ready for API calls');
+  }
+
+  // ============================================================================
+  // API PROXY EVENT HANDLERS - Event-driven iframe readiness
+  // ============================================================================
+
+  /**
+   * Handle API proxy ready notification from iframe
+   * Resolves waiting promises when the expected iframe is ready
+   */
+  private apiProxyReadyPromise: Promise<void> | null = null;
+  private apiProxyReadyResolve: (() => void) | null = null;
+
+  private onApiProxyReady(sourceWindow: Window): void {
+    console.log('[InternalPluginHost] API proxy ready notification received');
+    
+    // Resolve the waiting promise if one exists
+    if (this.apiProxyReadyResolve) {
+      this.apiProxyReadyResolve();
+      this.apiProxyReadyResolve = null;
+      this.apiProxyReadyPromise = null;
+    }
+  }
+
+  /**
+   * Wait for API proxy ready notification from specific iframe
+   * Event-driven replacement for iframe load polling
+   */
+  private waitForApiProxyReady(expectedIframe: HTMLIFrameElement): Promise<void> {
+    if (this.apiProxyReadyPromise) {
+      return this.apiProxyReadyPromise;
+    }
+
+    this.apiProxyReadyPromise = new Promise((resolve) => {
+      this.apiProxyReadyResolve = resolve;
+      
+      // Set a reasonable timeout (should be much faster than before)
+      setTimeout(() => {
+        if (this.apiProxyReadyResolve) {
+          console.warn('[InternalPluginHost] API proxy ready timeout - falling back to old behavior');
+          this.apiProxyReadyResolve();
+          this.apiProxyReadyResolve = null;
+          this.apiProxyReadyPromise = null;
+        }
+      }, 5000); // Much shorter timeout since we expect immediate notification
+    });
+
+    return this.apiProxyReadyPromise;
   }
 
   /**
@@ -512,10 +565,19 @@ export class InternalPluginHost {
    * Used by both initial polling and switchCommunity events
    */
   private async refreshCommunitySidebar(): Promise<void> {
-    if (!this.communitySidebar) return;
+    if (!this.communitySidebar) {
+      console.log('[InternalPluginHost] Skipping sidebar refresh - sidebar not initialized');
+      return;
+    }
     
     try {
       const freshCommunities = await this.authService.fetchUserCommunities();
+      
+      // 🎯 RACE CONDITION FIX: Check sidebar still exists after async operation
+      if (!this.communitySidebar) {
+        console.log('[InternalPluginHost] Sidebar became null during community fetch - skipping update');
+        return;
+      }
       
       // 🎯 FLICKERING FIX: Only update UI if communities actually changed
       if (this.hasCommunitiesChanged(freshCommunities, this.lastKnownCommunities)) {

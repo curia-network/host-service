@@ -29,7 +29,7 @@ import {
   AuthCompleteStep
 } from '@/components/embed';
 import { EmbedTopBar } from '@/components/embed/EmbedTopBar';
-import { EmbedConfig, EmbedStep, ProfileData, EmbedMode } from '@/types/embed';
+import { EmbedConfig, EmbedStep, ProfileData, EmbedMode, Community } from '@/types/embed';
 import { ApiProxyServer } from '@curia_/iframe-api-proxy';
 import { sessionManager } from '@/lib/SessionManager';
 
@@ -63,6 +63,7 @@ const EmbedContent: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<EmbedStep>('loading');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [useModernFlow, setUseModernFlow] = useState(true); // Use proven AuthenticationFlow by default
 
   // Parse embed configuration from URL parameters
@@ -366,10 +367,12 @@ const EmbedContent: React.FC = () => {
     setCurrentStep('community-selection');
   }, []);
 
-  const handleCommunitySelected = useCallback((communityId?: string) => {
+  const handleCommunitySelected = useCallback((communityId?: string, community?: Community) => {
     if (communityId) {
       setSelectedCommunityId(communityId);
+      setSelectedCommunity(community || null);
       console.log('[Embed] Community selected:', communityId);
+      console.log('[Embed] Community object:', community);
       console.log('[Embed] Mode:', config.mode || 'full');
       console.log('[Embed] DEBUG - profileData state:', profileData);
       console.log('[Embed] DEBUG - currentStep:', currentStep);
@@ -501,6 +504,7 @@ const EmbedContent: React.FC = () => {
             config={config}
             profileData={profileData}
             communityId={selectedCommunityId}
+            selectedCommunity={selectedCommunity}
           />
         );
         

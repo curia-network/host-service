@@ -194,9 +194,16 @@ export class PluginHost {
         return false;
       }
 
-      // Initialize the verification library with curia's public key
-      // We don't need a private key for verification, so pass empty string
-      const verifier = await CgPluginLibHost.initialize('', curiaPublicKey);
+      // Get host-service's private key (CgPluginLibHost requires both keys for initialization)
+      const hostPrivateKey = process.env.NEXT_PRIVATE_PRIVKEY;
+      if (!hostPrivateKey) {
+        console.error('[PluginHost] ❌ HOST_PRIVATE_KEY not found in environment');
+        return false;
+      }
+
+      // Initialize the verification library with both keys
+      // Note: For testing, keys are identical between host-service and curia
+      const verifier = await CgPluginLibHost.initialize(hostPrivateKey, curiaPublicKey);
       
       // Verify the signature against the request data
       const isValid = await verifier.verifySignature(request, signature);

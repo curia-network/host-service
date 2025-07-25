@@ -141,11 +141,42 @@ export class AuthenticationService {
         const actualElapsed = Date.now() - startTime;
         console.log(`[AuthenticationService] 🎯 ${phase} attempt ${attempt}/${retrySchedule.length} for ${method} (${actualElapsed}ms elapsed)`);
         
+        // Sign the request using host-service's signing endpoint
+        const requestData = {
+          method,
+          userId: this.authContext.userId,
+          communityId: this.authContext.communityId,
+          params,
+          timestamp: Date.now()
+        };
+
+        let signature;
+        try {
+          const signResponse = await fetch('/api/sign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+          });
+          
+          if (!signResponse.ok) {
+            throw new Error(`Signing failed: ${signResponse.statusText}`);
+          }
+          
+          const signResult = await signResponse.json();
+          signature = signResult.signature;
+          
+          console.log(`[AuthenticationService] ✅ Request signed for ${method}`);
+        } catch (signError) {
+          console.error(`[AuthenticationService] ❌ Failed to sign request for ${method}:`, signError);
+          throw new Error(`Failed to sign request: ${signError instanceof Error ? signError.message : 'Unknown error'}`);
+        }
+
         const response = await this.apiProxy.makeApiRequest({
           method,
           userId: this.authContext.userId,
           communityId: this.authContext.communityId,
-          params
+          params,
+          signature
         });
 
         if (response.success) {

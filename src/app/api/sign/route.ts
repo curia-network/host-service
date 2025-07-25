@@ -1,45 +1,42 @@
 /**
  * Sign API Route - Handles cryptographic signing of plugin requests
  * 
- * This endpoint is called by plugins to sign their API requests
+ * This endpoint is called by host-service components to sign their API requests
  * using the @curia_/cg-plugin-lib-host library.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { CgPluginLibHost } from '@curia_/cg-plugin-lib-host';
 
-// TODO: Import the actual @curia_ library when it's published
-// import { CgPluginLibHost } from '@curia_/cg-plugin-lib-host';
+const privateKey = process.env.NEXT_PRIVATE_PRIVKEY as string;
+const publicKey = process.env.NEXT_PUBLIC_PUBKEY as string;
+
+if (!privateKey || !publicKey) {
+  throw new Error("Host service private/public keys are not set in the .env file");
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // TODO: Use the actual @curia_/cg-plugin-lib-host for signing
-    // For now, we'll create a mock signature for development
-    
-    // In production, this would be:
-    // const privateKey = process.env.CURIA_PRIVATE_KEY;
-    // const keyId = process.env.CURIA_KEY_ID;
-    // const signedRequest = await CgPluginLibHost.signRequest(body, { privateKey, keyId });
-    
-    // Mock signing for development
-    const mockSignedRequest = {
-      ...body,
-      signature: 'mock_signature_' + Date.now(),
-      timestamp: Date.now(),
-      keyId: 'mock_key_id'
-    };
-    
-    console.log('[Sign API] Request signed:', {
+    console.log('[Host Sign API] Signing request:', {
       method: body.method,
       communityId: body.communityId,
-      timestamp: mockSignedRequest.timestamp
+      userId: body.userId
     });
-
-    return NextResponse.json(mockSignedRequest);
+    
+    // Initialize CgPluginLibHost with host-service's keys
+    const cgPluginLibHost = await CgPluginLibHost.initialize(privateKey, publicKey);
+    
+    // Sign the request
+    const { request: signedRequest, signature } = await cgPluginLibHost.signRequest(body);
+    
+    console.log('[Host Sign API] ✅ Request signed successfully');
+    
+    return NextResponse.json({ request: signedRequest, signature });
     
   } catch (error) {
-    console.error('[Sign API] Error signing request:', error);
+    console.error('[Host Sign API] ❌ Error signing request:', error);
     
     return NextResponse.json(
       { error: 'Failed to sign request' },

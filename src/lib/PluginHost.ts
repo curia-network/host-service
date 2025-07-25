@@ -9,6 +9,7 @@
  */
 
 import { DataProvider } from './DataProvider';
+import { CgPluginLibHost } from '@curia_/cg-plugin-lib-host';
 
 /**
  * Plugin configuration interface
@@ -34,6 +35,7 @@ export interface PluginApiRequest {
   timestamp?: number;
   communityId: string;
   userId?: string;
+  requestId?: string; // For request correlation and debugging
 }
 
 /**
@@ -72,8 +74,44 @@ export class PluginHost {
         };
       }
 
-      // TODO: Validate signature using @curia_/cg-plugin-lib-host
-      // For now, we'll skip signature validation during development
+      // 🔐 SIGNATURE VALIDATION: Verify request is from trusted plugin
+      console.log('[PluginHost] 🔐 Validating signature for request:', {
+        method: request.method,
+        hasSignature: !!request.signature,
+        requestId: request.requestId || 'no-id',
+        timestamp: new Date().toISOString()
+      });
+
+      if (!request.signature) {
+        console.warn('[PluginHost] ❌ Request rejected: No signature provided');
+        return {
+          data: null,
+          success: false,
+          error: 'Request rejected: Missing signature'
+        };
+      }
+
+      try {
+        const isValidSignature = await this.verifyPluginSignature(request, request.signature);
+        
+        if (!isValidSignature) {
+          console.warn('[PluginHost] ❌ Request rejected: Invalid signature');
+          return {
+            data: null,
+            success: false,
+            error: 'Request rejected: Invalid signature'
+          };
+        }
+
+        console.log('[PluginHost] ✅ Signature validation passed');
+      } catch (error) {
+        console.error('[PluginHost] ❌ Signature validation failed:', error);
+        return {
+          data: null,
+          success: false,
+          error: 'Request rejected: Signature validation error'
+        };
+      }
       
       // Route to appropriate API handler
       let responseData: any;
@@ -141,16 +179,46 @@ export class PluginHost {
   }
 
   /**
-   * Validate plugin request signature
+   * Validate plugin request signature using curia's public key
+   * 
+   * @param request - The request to validate  
+   * @param signature - The signature to verify
+   * @returns Promise<boolean> - Whether the signature is valid
+   */
+  private async verifyPluginSignature(request: any, signature: string): Promise<boolean> {
+    try {
+      // Get curia's public key from environment
+      const curiaPublicKey = process.env.NEXT_PUBLIC_CURIA_PUBKEY;
+      if (!curiaPublicKey) {
+        console.error('[PluginHost] ❌ CURIA_PUBKEY not found in environment');
+        return false;
+      }
+
+      // Initialize the verification library with curia's public key
+      // We don't need a private key for verification, so pass empty string
+      const verifier = await CgPluginLibHost.initialize('', curiaPublicKey);
+      
+      // Verify the signature against the request data
+      const isValid = await verifier.verifySignature(request, signature);
+      
+      console.log('[PluginHost] 🔐 Signature verification result:', isValid);
+      return isValid;
+      
+    } catch (error) {
+      console.error('[PluginHost] ❌ Signature verification error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate plugin request signature (legacy method - now delegates to verifyPluginSignature)
    * 
    * @param request - The request to validate
    * @returns Promise<boolean>
    */
   private async validateSignature(request: PluginApiRequest): Promise<boolean> {
-    // TODO: Implement signature validation using @curia_/cg-plugin-lib-host
-    // This should verify that the request was signed by the plugin's private key
-    
     if (!request.signature || !request.timestamp) {
+      console.warn('[PluginHost] Request missing signature or timestamp');
       return false;
     }
 
@@ -160,15 +228,14 @@ export class PluginHost {
     const timeDiff = Math.abs(now - requestTime);
     
     if (timeDiff > 5 * 60 * 1000) { // 5 minutes
+      console.warn('[PluginHost] Request timestamp too old:', { 
+        now, requestTime, diffMinutes: timeDiff / (60 * 1000) 
+      });
       return false;
     }
 
-    // TODO: Use @curia_/cg-plugin-lib-host to verify signature
-    // const isValid = await CgPluginLibHost.verifySignature(request);
-    // return isValid;
-    
-    // For now, accept all requests during development
-    return true;
+    // Use the new signature verification method
+    return this.verifyPluginSignature(request, request.signature);
   }
 
   /**

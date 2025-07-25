@@ -15,7 +15,7 @@
   "dependencies": {
     "@curia_/cg-plugin-lib": "^1.0.7",
     "@curia_/cg-plugin-lib-host": "^1.0.2",
-    "@curia_/iframe-api-proxy": "1.2.1",
+    "@curia_/iframe-api-proxy": "file:/Users/florian/Git/curia/iframe-api-proxy",
     "@erc725/erc725.js": "^0.28.1",
     "@lukso/lsp-smart-contracts": "^0.16.7",
     "@radix-ui/react-dialog": "^1.1.14",

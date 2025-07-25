@@ -29,6 +29,7 @@ export interface InternalPluginMessage {
   params?: any;
   data?: any;
   error?: string;
+  signature?: string;
 }
 
 export interface MessageRouterCallbacks {
@@ -179,13 +180,15 @@ export class MessageRouter {
         communityId: authContext.communityId,
         userId: authContext.userId
       });
+      console.log('[MessageRouter] Signature present:', !!message.signature);
       console.log(`[MULTI-IFRAME] [MessageRouter] API request "${message.method}" using community context: ${authContext.communityId}`);
       
       const result = await this.apiProxy.makeApiRequest({
         method: message.method as any,
         params: message.params,
         communityId: authContext.communityId,
-        userId: authContext.userId
+        userId: authContext.userId,
+        signature: message.signature
       });
 
       console.log('[MessageRouter] API proxy response:', result);

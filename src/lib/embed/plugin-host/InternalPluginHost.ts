@@ -85,6 +85,11 @@ export class InternalPluginHost {
   // 🚀 FIX: Singleton API proxy to prevent multiple client instances in React Strict Mode
   private static sharedApiProxy: ApiProxyClient | null = null;
   
+  // 🚀 FIX: Singleton session service to prevent multiple iframes and proxies
+  private static sharedSessionServiceIframe: HTMLIFrameElement | null = null;
+  private static sharedSessionServiceProxy: SessionServiceProxy | null = null;
+  private static sessionServiceRefCount = 0;
+  
   /**
    * Get shared ApiProxyClient instance for embed context
    */
@@ -103,13 +108,67 @@ export class InternalPluginHost {
   }
   
   /**
+   * Get shared session service (iframe + proxy) for embed context
+   */
+  private static getSharedSessionService(hostServiceUrl: string): { iframe: HTMLIFrameElement; proxy: SessionServiceProxy } {
+    if (!InternalPluginHost.sharedSessionServiceIframe || !InternalPluginHost.sharedSessionServiceProxy) {
+      console.log('[InternalPluginHost] Creating shared session service singleton');
+      
+      // Create hidden session service iframe
+      InternalPluginHost.sharedSessionServiceIframe = document.createElement('iframe');
+      InternalPluginHost.sharedSessionServiceIframe.src = `${hostServiceUrl}/session-service`;
+      InternalPluginHost.sharedSessionServiceIframe.style.display = 'none';
+      InternalPluginHost.sharedSessionServiceIframe.style.position = 'absolute';
+      InternalPluginHost.sharedSessionServiceIframe.style.width = '0px';
+      InternalPluginHost.sharedSessionServiceIframe.style.height = '0px';
+      InternalPluginHost.sharedSessionServiceIframe.style.border = 'none';
+      InternalPluginHost.sharedSessionServiceIframe.setAttribute('data-purpose', 'session-service');
+      InternalPluginHost.sharedSessionServiceIframe.setAttribute('data-curia-iframe', 'true');
+      
+      // Add to document body
+      document.body.appendChild(InternalPluginHost.sharedSessionServiceIframe);
+      
+      // Initialize proxy
+      InternalPluginHost.sharedSessionServiceProxy = new SessionServiceProxy(InternalPluginHost.sharedSessionServiceIframe);
+    } else {
+      console.log('[InternalPluginHost] Reusing shared session service singleton');
+    }
+    
+    InternalPluginHost.sessionServiceRefCount++;
+    console.log(`[InternalPluginHost] Session service ref count: ${InternalPluginHost.sessionServiceRefCount}`);
+    
+    return {
+      iframe: InternalPluginHost.sharedSessionServiceIframe,
+      proxy: InternalPluginHost.sharedSessionServiceProxy
+    };
+  }
+  
+  /**
    * Clean up shared resources (called when embed is destroyed)
    */
   private static cleanupSharedResources(): void {
+    // Clean up API proxy
     if (InternalPluginHost.sharedApiProxy) {
       console.log('[InternalPluginHost] Destroying shared ApiProxyClient singleton');
       InternalPluginHost.sharedApiProxy.destroy();
       InternalPluginHost.sharedApiProxy = null;
+    }
+    
+    // Clean up session service (with ref counting)
+    InternalPluginHost.sessionServiceRefCount--;
+    console.log(`[InternalPluginHost] Session service ref count: ${InternalPluginHost.sessionServiceRefCount}`);
+    
+    if (InternalPluginHost.sessionServiceRefCount <= 0) {
+      if (InternalPluginHost.sharedSessionServiceProxy) {
+        console.log('[InternalPluginHost] Destroying shared session service singleton');
+        InternalPluginHost.sharedSessionServiceProxy.destroy();
+        InternalPluginHost.sharedSessionServiceProxy = null;
+      }
+      if (InternalPluginHost.sharedSessionServiceIframe && InternalPluginHost.sharedSessionServiceIframe.parentNode) {
+        InternalPluginHost.sharedSessionServiceIframe.parentNode.removeChild(InternalPluginHost.sharedSessionServiceIframe);
+        InternalPluginHost.sharedSessionServiceIframe = null;
+      }
+      console.log('[InternalPluginHost] Session service singleton destroyed');
     }
   }
   private container: HTMLElement;
@@ -216,24 +275,12 @@ export class InternalPluginHost {
     console.log('[InternalPluginHost] Initializing dedicated session service iframe');
     
     try {
-      // Create hidden session service iframe
-      this.sessionServiceIframe = document.createElement('iframe');
-      this.sessionServiceIframe.src = `${this.hostServiceUrl}/session-service`;
-      this.sessionServiceIframe.style.display = 'none';
-      this.sessionServiceIframe.style.position = 'absolute';
-      this.sessionServiceIframe.style.width = '0px';
-      this.sessionServiceIframe.style.height = '0px';
-      this.sessionServiceIframe.style.border = 'none';
-      this.sessionServiceIframe.setAttribute('data-purpose', 'session-service');
-      this.sessionServiceIframe.setAttribute('data-curia-iframe', 'true');
+      // 🚀 FIX: Use singleton session service to prevent multiple iframes
+      const sessionService = InternalPluginHost.getSharedSessionService(this.hostServiceUrl);
+      this.sessionServiceIframe = sessionService.iframe;
+      this.sessionServiceProxy = sessionService.proxy;
       
-      // Add to document body (not container, since it's hidden)
-      document.body.appendChild(this.sessionServiceIframe);
-      
-      // Initialize proxy
-      this.sessionServiceProxy = new SessionServiceProxy(this.sessionServiceIframe);
-      
-      console.log('[InternalPluginHost] Session service iframe created and proxy initialized');
+      console.log('[InternalPluginHost] Session service singleton initialized');
     } catch (error) {
       console.error('[InternalPluginHost] Failed to initialize session service:', error);
     }
@@ -1440,16 +1487,9 @@ export class InternalPluginHost {
       this.communitySidebar = null;
     }
     
-    // Clean up session service
-    if (this.sessionServiceProxy) {
-      this.sessionServiceProxy.destroy();
-      this.sessionServiceProxy = null;
-    }
-    if (this.sessionServiceIframe && this.sessionServiceIframe.parentNode) {
-      this.sessionServiceIframe.parentNode.removeChild(this.sessionServiceIframe);
-      this.sessionServiceIframe = null;
-      console.log('[InternalPluginHost] Session service iframe removed');
-    }
+    // Clean up session service references (singleton will be cleaned by shared resources)
+    this.sessionServiceProxy = null;
+    this.sessionServiceIframe = null;
     
     // Clean up community iframes
     console.log(`[MULTI-IFRAME] Cleaning up ${this.communityIframes.size} community iframes`);

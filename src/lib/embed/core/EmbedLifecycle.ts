@@ -7,7 +7,7 @@
 /**
  * Generate the main initialization code
  */
-export function generateInitializationCode(urls: { hostUrl: string; forumUrl: string }): string {
+export function generateInitializationCode(urls: { hostUrl: string; forumUrl: string; publicKey: string }): string {
   return `
     // Initialize the embed - config and container are already created above
     try {
@@ -20,7 +20,8 @@ export function generateInitializationCode(urls: { hostUrl: string; forumUrl: st
         container, 
         config, 
         '${urls.hostUrl}', 
-        '${urls.forumUrl}'
+        '${urls.forumUrl}',
+        '${urls.publicKey}'
       );
       console.log('[CuriaEmbed] InternalPluginHost initialized');
       

@@ -12,9 +12,10 @@ import { InternalPluginHost } from './plugin-host/InternalPluginHost';
 // Use global interface from EmbedTypes (avoids circular import issues)
 // window.curiaEmbed will be InternalPluginHost but typed as any
 
-// Get environment URLs (injected at build time via esbuild define)
+// Get environment values (injected at build time via esbuild define)
 declare const CURIA_HOST_URL: string;
 declare const CURIA_FORUM_URL: string;
+declare const CURIA_PUBLIC_KEY: string;
 
 // Capture script element during initial execution when document.currentScript works
 const EMBED_SCRIPT_ELEMENT = document.currentScript as HTMLScriptElement;
@@ -138,7 +139,8 @@ function initializeEmbed() {
       container,
       config,
       CURIA_HOST_URL,
-      CURIA_FORUM_URL
+      CURIA_FORUM_URL,
+      CURIA_PUBLIC_KEY
     );
 
     // Store global reference for cleanup

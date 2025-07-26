@@ -20,9 +20,10 @@ async function buildEmbedWithEsbuild() {
   try {
     console.log('[Build] Building embed.js with esbuild...');
     
-    // Get environment URLs (required for build)
+    // Get environment URLs and public key (required for build)
     const hostUrl = process.env.NEXT_PUBLIC_HOST_SERVICE_URL;
     const forumUrl = process.env.NEXT_PUBLIC_CURIA_FORUM_URL;
+    const publicKey = process.env.NEXT_PUBLIC_CURIA_PUBKEY;
     
     if (!hostUrl) {
       throw new Error('NEXT_PUBLIC_HOST_SERVICE_URL environment variable is required');
@@ -30,6 +31,10 @@ async function buildEmbedWithEsbuild() {
     
     if (!forumUrl) {
       throw new Error('NEXT_PUBLIC_CURIA_FORUM_URL environment variable is required');
+    }
+    
+    if (!publicKey) {
+      throw new Error('NEXT_PUBLIC_CURIA_PUBKEY environment variable is required for signature validation');
     }
 
     // Ensure public directory exists
@@ -54,6 +59,7 @@ async function buildEmbedWithEsbuild() {
         // Inject environment variables at build time
         'CURIA_HOST_URL': JSON.stringify(hostUrl),
         'CURIA_FORUM_URL': JSON.stringify(forumUrl),
+        'CURIA_PUBLIC_KEY': JSON.stringify(publicKey),
       },
       banner: {
         js: `/* Curia Embed Script - Built with esbuild ${new Date().toISOString()} */`

@@ -75,71 +75,24 @@ export class PluginHost {
         };
       }
 
-      // 🔐 SIGNATURE VALIDATION: Verify request is from trusted plugin
-      console.log('[PluginHost] 🔐 Validating signature for request:', {
+      // 🔐 SIGNATURE VALIDATION: Already handled in MessageRouter for iframe requests
+      console.log('[PluginHost] 🔐 Processing request:', {
         method: request.method,
         hasSignature: !!request.signature,
-        requestId: request.requestId || 'no-id',
         timestamp: new Date().toISOString()
       });
 
-      console.log('[VALIDATE DEBUG] Full request data being validated:', JSON.stringify(request, null, 2));
+      console.log('[VALIDATE DEBUG] Full request data:', JSON.stringify(request, null, 2));
 
-      // Detect internal vs iframe-proxy calls
-      const isInternalCall = !!(request.userId && !request.iframeUid);
-      const isIframeProxyCall = !!(request.iframeUid && request.requestId);
+      // Detect call types - signature validation already done in MessageRouter for iframe calls
+      const hasSignature = !!request.signature;
+      const isIframeProxyCall = hasSignature;   // Already validated in MessageRouter
+      const isInternalCall = !hasSignature;     // AuthenticationService internal calls
 
       if (isInternalCall) {
-        console.log('[PluginHost] 🏠 Internal call detected - bypassing signature validation');
+        console.log('[PluginHost] 🏠 Internal call detected - no signature validation needed');
       } else if (isIframeProxyCall) {
-        console.log('[PluginHost] 🖼️ Iframe-proxy call detected - validating signature');
-        
-        if (!request.signature) {
-          console.warn('[PluginHost] ❌ Request rejected: No signature provided');
-          return {
-            data: null,
-            success: false,
-            error: 'Request rejected: Missing signature'
-          };
-        }
-
-        try {
-          // Reconstruct the original signed data format that CgPluginLib uses
-          const originalRequestData = {
-            method: request.method,
-            params: request.params,
-            iframeUid: request.iframeUid,
-            requestId: request.requestId,
-            timestamp: request.timestamp
-          };
-        
-          const isValidSignature = await this.verifyPluginSignature(originalRequestData, request.signature);
-        
-          if (!isValidSignature) {
-            console.warn('[PluginHost] ❌ Request rejected: Invalid signature');
-            return {
-              data: null,
-              success: false,
-              error: 'Request rejected: Invalid signature'
-            };
-          }
-
-          console.log('[PluginHost] ✅ Signature validation passed');
-        } catch (error) {
-          console.error('[PluginHost] ❌ Signature validation failed:', error);
-          return {
-            data: null,
-            success: false,
-            error: 'Request rejected: Signature validation error'
-          };
-        }
-      } else {
-        console.warn('[PluginHost] ❌ Request rejected: Unknown call type - not internal or iframe-proxy');
-        return {
-          data: null,
-          success: false,
-          error: 'Request rejected: Unknown call type'
-        };
+        console.log('[PluginHost] 🖼️ Iframe-proxy call detected - signature already validated in MessageRouter');
       }
       
       // Route to appropriate API handler

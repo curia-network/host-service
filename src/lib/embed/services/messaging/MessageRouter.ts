@@ -13,6 +13,7 @@
 
 import { ApiProxyClient } from '@curia_/iframe-api-proxy';
 import { InternalAuthContext } from '../auth/AuthenticationService';
+import { FrontendSignatureValidator } from '../signature';
 
 export enum InternalMessageType {
   API_REQUEST = 'api_request',
@@ -30,6 +31,7 @@ export interface InternalPluginMessage {
   data?: any;
   error?: string;
   signature?: string;
+  timestamp?: number; // ✅ Add timestamp field to match signed data
 }
 
 export interface MessageRouterCallbacks {
@@ -47,18 +49,29 @@ export class MessageRouter {
   private callbacks: MessageRouterCallbacks;
   private messageListener?: (event: MessageEvent) => void;
   private myUid: string;
+  private signatureValidator: FrontendSignatureValidator;
 
   constructor(
     myUid: string,
     apiProxy: ApiProxyClient,
-    callbacks: MessageRouterCallbacks = {}
+    callbacks: MessageRouterCallbacks = {},
+    publicKey?: string
   ) {
     // Use the shared API proxy client (don't create a new one!)
     this.apiProxy = apiProxy;
     this.myUid = myUid;
     this.callbacks = callbacks;
     
-    console.log('[MessageRouter] Initialized with shared API proxy client');
+    // Initialize signature validator for frontend validation
+    if (publicKey) {
+      // Use provided public key (for embed script)
+      this.signatureValidator = FrontendSignatureValidator.fromPublicKey(publicKey);
+    } else {
+      // Use environment variable (for Next.js components)
+      this.signatureValidator = FrontendSignatureValidator.fromEnvironment();
+    }
+    
+    console.log('[MessageRouter] Initialized with shared API proxy client and signature validator');
   }
 
   /**
@@ -154,6 +167,47 @@ export class MessageRouter {
       // Validate method is provided and supported
       if (!message.method || !this.isMethodSupported(message.method)) {
         throw new Error(`Unknown API method: ${message.method}`);
+      }
+
+      // 🔐 FRONTEND SIGNATURE VALIDATION: Validate iframe request before transformation
+      if (message.signature) {
+        console.log('[MessageRouter] 🔐 Validating signature (frontend Web Crypto API)');
+        
+        try {
+          // Reconstruct original signed data (what CgPluginLib actually signed)
+          const originalSignedData: any = {
+            method: message.method,
+            iframeUid: message.iframeUid,
+            requestId: message.requestId,
+            timestamp: message.timestamp // ✅ Use timestamp from message
+          };
+          
+          // Only include params if it exists and is not undefined (matches signing behavior)
+          if (message.params !== undefined) {
+            originalSignedData.params = message.params;
+          }
+
+          // 🔍 DEBUG: Log exactly what we're validating
+          console.log('[MessageRouter] 🔍 DEBUG - Message received:', JSON.stringify(message, null, 2));
+          console.log('[MessageRouter] 🔍 DEBUG - Data for validation:', JSON.stringify(originalSignedData, null, 2));
+          console.log('[MessageRouter] 🔍 DEBUG - Signature length:', message.signature?.length);
+
+          // Validate signature using browser-native Web Crypto API
+          const isValid = await this.signatureValidator.validateSignature(originalSignedData, message.signature);
+          
+          if (!isValid) {
+            throw new Error('Invalid signature - request rejected');
+          }
+          
+          console.log('[MessageRouter] ✅ Frontend signature validation passed');
+        } catch (error) {
+          console.error('[MessageRouter] ❌ Frontend signature validation failed:', error);
+          this.sendError(source, message, `Signature validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          return;
+        }
+      } else {
+        // No signature means this should be an internal call, but iframe requests should always have signatures
+        console.warn('[MessageRouter] ⚠️ No signature provided for iframe request - this might be a security issue');
       }
 
       // Handle community switching requests locally (not via API proxy)

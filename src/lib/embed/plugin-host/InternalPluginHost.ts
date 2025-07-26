@@ -115,12 +115,16 @@ export class InternalPluginHost {
   // Cross-tab update throttling
   private lastCrossTabReload: number = 0;
   private readonly CROSS_TAB_RELOAD_THROTTLE = 2000; // 2 seconds
+  
+  // Signature validation
+  private readonly publicKey: string;
 
-  constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string) {
+  constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string, publicKey: string) {
     this.container = container;
     this.config = config;
     this.hostServiceUrl = hostServiceUrl;
     this.forumUrl = forumUrl;
+    this.publicKey = publicKey;
     
     // Initialize API proxy
     this.apiProxy = new ApiProxyClient({
@@ -158,7 +162,8 @@ export class InternalPluginHost {
         onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this),
         onAddSessionComplete: this.handleAddSessionComplete.bind(this),
         onApiProxyReady: this.onApiProxyReady.bind(this)
-      }
+      },
+      publicKey // Pass public key for signature validation
     );
     
     // Initialize the embed
@@ -1299,7 +1304,7 @@ export class InternalPluginHost {
     
     // 2. Create brand new InternalPluginHost instance (fresh start)
     console.log('[InternalPluginHost] Creating fresh InternalPluginHost instance');
-    const newInstance = new InternalPluginHost(container, config, hostServiceUrl, forumUrl);
+    const newInstance = new InternalPluginHost(container, config, hostServiceUrl, forumUrl, this.publicKey);
     
     // 3. Update global reference if it exists (for window.curiaEmbed.destroy() etc)
     if (window.curiaEmbed) {

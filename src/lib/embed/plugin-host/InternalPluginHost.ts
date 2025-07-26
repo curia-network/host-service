@@ -126,6 +126,9 @@ export class InternalPluginHost {
     this.forumUrl = forumUrl;
     this.publicKey = publicKey;
     
+    // 🔧 Configure SessionManager with host service URL for embed context
+    sessionManager.configure(hostServiceUrl);
+    
     // Initialize API proxy
     this.apiProxy = new ApiProxyClient({
       debug: true,

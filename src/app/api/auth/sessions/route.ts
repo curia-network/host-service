@@ -7,6 +7,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
+import { 
+  applyCorsHeaders, 
+  validateOriginOrError, 
+  createCorsPreflightResponse 
+} from '@/lib/corsUtils';
 
 // ============================================================================
 // DATABASE CONNECTION
@@ -138,6 +143,15 @@ async function enrichSessionWithUserData(session: DatabaseSession): Promise<Sess
 
 export async function GET(request: NextRequest) {
   try {
+    // Get request origin for CORS validation
+    const origin = request.headers.get('origin') || '';
+    
+    // 🔐 NEW: Early origin validation for authentication endpoint
+    const corsError = validateOriginOrError(origin);
+    if (corsError) {
+      return corsError;
+    }
+    
     // Extract session token from Authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -197,14 +211,21 @@ export async function GET(request: NextRequest) {
     
     console.log(`[GET /api/auth/sessions] Retrieved ${enrichedSessions.length} sessions for user ${userId}`);
     
-    return NextResponse.json(enrichedSessions);
+    const response = NextResponse.json(enrichedSessions);
+    
+    // 🔐 NEW: Apply secure CORS headers
+    return applyCorsHeaders(response, origin);
     
   } catch (error) {
     console.error('[GET /api/auth/sessions] Error:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
+    
+    // 🔐 NEW: Apply secure CORS headers to error response
+    const origin = request.headers.get('origin') || '';
+    return applyCorsHeaders(errorResponse, origin);
   }
 }
 
@@ -301,4 +322,10 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// 🔐 NEW: Handle OPTIONS requests with secure CORS
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || '';
+  return createCorsPreflightResponse(origin);
 } 

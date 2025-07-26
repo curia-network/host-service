@@ -55,6 +55,7 @@ export class SessionManager {
   private listeners: Set<SessionChangeListener> = new Set();
   private syncInterval: NodeJS.Timeout | null = null;
   private isInitialized = false;
+  private hostServiceUrl: string = ''; // Host service URL for API calls
 
   private constructor() {
     this.storage = this.loadFromStorage();
@@ -71,6 +72,15 @@ export class SessionManager {
       SessionManager.instance = new SessionManager();
     }
     return SessionManager.instance;
+  }
+
+  /**
+   * Configure the host service URL for API calls
+   * Must be called before making any API calls in embed context
+   */
+  public configure(hostServiceUrl: string): void {
+    this.hostServiceUrl = hostServiceUrl;
+    console.log('[SessionManager] Configured with host service URL:', hostServiceUrl);
   }
 
   // ============================================================================
@@ -516,7 +526,10 @@ export class SessionManager {
         return;
       }
 
-      const response = await fetch('/api/auth/sessions', {
+      // Use configured host service URL if available, fallback to relative path for regular app usage
+      const apiUrl = this.hostServiceUrl ? `${this.hostServiceUrl}/api/auth/sessions` : '/api/auth/sessions';
+      
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${activeToken}`,

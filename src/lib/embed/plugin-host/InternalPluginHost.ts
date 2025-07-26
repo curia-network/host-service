@@ -1129,16 +1129,26 @@ export class InternalPluginHost {
       const sessionToken = action.replace('switch-session:', '');
       console.log('[InternalPluginHost] Switching to session via SessionServiceProxy:', sessionToken);
       
-      // 🚀 FIX: Route session switch through SessionServiceProxy (authoritative) instead of parent SessionManager
+      // 🚀 FIX: Route session switch through SessionServiceProxy + trigger full reload
       if (this.sessionServiceProxy) {
-        this.sessionServiceProxy.setActiveSession(sessionToken).catch(error => {
-          console.error('[InternalPluginHost] Failed to switch session via proxy:', error);
-        });
+        this.sessionServiceProxy.setActiveSession(sessionToken)
+          .then(() => {
+            console.log('[InternalPluginHost] Session updated in service, triggering full reload');
+            this.reloadForSessionSwitch();
+          })
+          .catch(error => {
+            console.error('[InternalPluginHost] Failed to switch session via proxy:', error);
+          });
       } else {
         console.warn('[InternalPluginHost] No SessionServiceProxy available, falling back to parent SessionManager');
-        sessionManager.setActiveSession(sessionToken).catch(error => {
-          console.error('[InternalPluginHost] Failed to switch session via fallback:', error);
-        });
+        sessionManager.setActiveSession(sessionToken)
+          .then(() => {
+            console.log('[InternalPluginHost] Session updated locally, triggering full reload');
+            this.reloadForSessionSwitch();
+          })
+          .catch(error => {
+            console.error('[InternalPluginHost] Failed to switch session via fallback:', error);
+          });
       }
     } else if (action === 'switch-account') {
       // DEPRECATED: Use session switching in profile menu instead

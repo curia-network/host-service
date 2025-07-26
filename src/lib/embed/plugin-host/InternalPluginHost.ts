@@ -1127,10 +1127,19 @@ export class InternalPluginHost {
       this.authService.signOut();
     } else if (action.startsWith('switch-session:')) {
       const sessionToken = action.replace('switch-session:', '');
-      console.log('[InternalPluginHost] Switching to session:', sessionToken);
-      sessionManager.setActiveSession(sessionToken).catch(error => {
-        console.error('[InternalPluginHost] Failed to switch session:', error);
-      });
+      console.log('[InternalPluginHost] Switching to session via SessionServiceProxy:', sessionToken);
+      
+      // 🚀 FIX: Route session switch through SessionServiceProxy (authoritative) instead of parent SessionManager
+      if (this.sessionServiceProxy) {
+        this.sessionServiceProxy.setActiveSession(sessionToken).catch(error => {
+          console.error('[InternalPluginHost] Failed to switch session via proxy:', error);
+        });
+      } else {
+        console.warn('[InternalPluginHost] No SessionServiceProxy available, falling back to parent SessionManager');
+        sessionManager.setActiveSession(sessionToken).catch(error => {
+          console.error('[InternalPluginHost] Failed to switch session via fallback:', error);
+        });
+      }
     } else if (action === 'switch-account') {
       // DEPRECATED: Use session switching in profile menu instead
       console.log('[InternalPluginHost] Switch account deprecated - use session switching');

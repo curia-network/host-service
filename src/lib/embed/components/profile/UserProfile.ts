@@ -494,18 +494,22 @@ export class UserProfileComponent {
 
   /**
    * Handle session switching
+   * 🚀 FIX: Delegate to parent via callback instead of direct SessionManager call
    */
   private async handleSessionSwitch(sessionToken: string): Promise<void> {
     try {
-      console.log('[UserProfileComponent] Switching to session:', sessionToken);
-      await this.sessionManager.setActiveSession(sessionToken);
+      console.log('[UserProfileComponent] Delegating session switch to parent:', sessionToken);
       
-      // Close menu after switching (menu will refresh automatically via subscription)
-      this.refreshMenu();
+      // Delegate to parent using existing callback pattern with token encoded in action
+      if (this.options.onMenuAction) {
+        this.options.onMenuAction(`switch-session:${sessionToken}`);
+      } else {
+        console.warn('[UserProfileComponent] No onMenuAction callback available for session switch');
+      }
       
-      console.log('[UserProfileComponent] Session switch completed');
+      console.log('[UserProfileComponent] Session switch delegated successfully');
     } catch (error) {
-      console.error('[UserProfileComponent] Failed to switch session:', error);
+      console.error('[UserProfileComponent] Failed to delegate session switch:', error);
     }
   }
 

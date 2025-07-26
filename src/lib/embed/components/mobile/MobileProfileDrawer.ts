@@ -414,16 +414,18 @@ export class MobileProfileDrawer {
 
   /**
    * Handle session switching (same as desktop)
+   * 🚀 FIX: Delegate to parent via callback instead of direct SessionManager call
    */
   private async handleSessionSwitch(sessionToken: string): Promise<void> {
     try {
-      console.log('[MobileProfileDrawer] Switching to session:', sessionToken);
-      await this.sessionManager.setActiveSession(sessionToken);
+      console.log('[MobileProfileDrawer] Delegating session switch to parent:', sessionToken);
       
-      // Drawer will refresh automatically via subscription
-      console.log('[MobileProfileDrawer] Session switch completed');
+      // Delegate to parent using existing callback pattern with token encoded in action
+      this.options.onMenuAction(`switch-session:${sessionToken}`);
+      
+      console.log('[MobileProfileDrawer] Session switch delegated successfully');
     } catch (error) {
-      console.error('[MobileProfileDrawer] Failed to switch session:', error);
+      console.error('[MobileProfileDrawer] Failed to delegate session switch:', error);
     }
   }
 

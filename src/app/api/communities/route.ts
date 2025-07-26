@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { randomUUID } from 'crypto';
+import { 
+  applyCorsHeaders, 
+  validateOriginOrError, 
+  createCorsPreflightResponse 
+} from '@/lib/corsUtils';
 
 // Database connection (same pattern as verify-signature)
 const pool = new Pool({
@@ -31,6 +36,12 @@ export async function GET(request: NextRequest) {
   try {
     // Get request origin for CORS
     const origin = request.headers.get('origin') || '';
+    
+    // 🔐 NEW: Origin validation for data protection
+    const corsError = validateOriginOrError(origin);
+    if (corsError) {
+      return corsError;
+    }
     
     const client = await pool.connect();
     
@@ -149,12 +160,8 @@ export async function GET(request: NextRequest) {
           isAuthenticated: true
         });
         
-        // Add CORS headers
-        response.headers.set('Access-Control-Allow-Origin', origin || '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        
-        return response;
+        // 🔐 NEW: Apply secure CORS headers
+        return applyCorsHeaders(response, origin);
 
       } else {
         // Unauthenticated user: show all public communities
@@ -198,12 +205,8 @@ export async function GET(request: NextRequest) {
           isAuthenticated: false
         });
         
-        // Add CORS headers
-        response.headers.set('Access-Control-Allow-Origin', origin || '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        
-        return response;
+        // 🔐 NEW: Apply secure CORS headers
+        return applyCorsHeaders(response, origin);
       }
     } finally {
       client.release();
@@ -215,13 +218,9 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
     
-    // Add CORS headers to error response
+    // 🔐 NEW: Apply secure CORS headers to error response
     const origin = request.headers.get('origin') || '';
-    errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return errorResponse;
+    return applyCorsHeaders(errorResponse, origin);
   }
 }
 
@@ -229,6 +228,12 @@ export async function POST(request: NextRequest) {
   try {
     // Get request origin for CORS
     const origin = request.headers.get('origin') || '';
+    
+    // 🔐 NEW: Origin validation for data protection
+    const corsError = validateOriginOrError(origin);
+    if (corsError) {
+      return corsError;
+    }
     
     const client = await pool.connect();
     
@@ -261,10 +266,7 @@ export async function POST(request: NextRequest) {
           { error: 'Authentication required' },
           { status: 401 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       // Check user identity type - community creation requires secure identity
@@ -280,10 +282,7 @@ export async function POST(request: NextRequest) {
           { error: 'User not found' },
           { status: 404 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       const identityType = userResult.rows[0].identity_type;
@@ -292,10 +291,7 @@ export async function POST(request: NextRequest) {
           { error: 'Community creation requires ENS or Universal Profile authentication' },
           { status: 403 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       console.log('[communities] User identity type verified:', identityType, 'for user:', userId);
@@ -309,10 +305,7 @@ export async function POST(request: NextRequest) {
           { error: 'Name and community_short_id are required' },
           { status: 400 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       // Validate community_short_id format (alphanumeric + hyphens, no spaces)
@@ -322,10 +315,7 @@ export async function POST(request: NextRequest) {
           { error: 'Community short ID can only contain letters, numbers, hyphens, and underscores' },
           { status: 400 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       // Check if community_short_id is already taken
@@ -339,10 +329,7 @@ export async function POST(request: NextRequest) {
           { error: 'Community short ID is already taken' },
           { status: 409 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       // Create the community
@@ -367,10 +354,7 @@ export async function POST(request: NextRequest) {
           { error: 'Failed to create community' },
           { status: 500 }
         );
-        errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return errorResponse;
+        return applyCorsHeaders(errorResponse, origin);
       }
 
       // Add user as owner in user_communities table
@@ -404,12 +388,8 @@ export async function POST(request: NextRequest) {
       
       const response = NextResponse.json(responseData, { status: 201 });
       
-      // Add CORS headers
-      response.headers.set('Access-Control-Allow-Origin', origin || '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      
-      return response;
+      // 🔐 NEW: Apply secure CORS headers
+      return applyCorsHeaders(response, origin);
 
     } finally {
       client.release();
@@ -421,29 +401,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
     
-    // Add CORS headers to error response
+    // 🔐 NEW: Apply secure CORS headers to error response
     const origin = request.headers.get('origin') || '';
-    errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return errorResponse;
+    return applyCorsHeaders(errorResponse, origin);
   }
 }
 
-// Handle OPTIONS requests for CORS
+// 🔐 NEW: Handle OPTIONS requests with secure CORS
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || '';
-  
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': origin || '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
-  });
+  return createCorsPreflightResponse(origin);
 }
 
 // Helper function to assign gradient classes based on community name

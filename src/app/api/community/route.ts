@@ -8,6 +8,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PluginHost } from '../../../lib/PluginHost';
 import { DatabaseDataProvider } from '../../../lib/DataProvider';
+import { 
+  applyCorsHeaders, 
+  validateOriginOrError, 
+  createCorsPreflightResponse 
+} from '@/lib/corsUtils';
 
 // Initialize the plugin host with data provider
 const dataProvider = new DatabaseDataProvider();
@@ -18,10 +23,16 @@ export async function POST(request: NextRequest) {
     // Get request origin for CORS validation
     const origin = request.headers.get('origin') || '';
     
+    // 🔐 NEW: Origin validation for data protection
+    const corsError = validateOriginOrError(origin);
+    if (corsError) {
+      return corsError;
+    }
+    
     // Parse the request body
     const body = await request.json();
     
-    // Helper function to create CORS-enabled error response
+    // 🔐 NEW: Helper function to create secure CORS-enabled error response
     const createErrorResponse = (error: string, status: number) => {
       const response = NextResponse.json({
         data: null,
@@ -29,11 +40,7 @@ export async function POST(request: NextRequest) {
         error
       }, { status });
       
-      response.headers.set('Access-Control-Allow-Origin', origin || '*');
-      response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      
-      return response;
+      return applyCorsHeaders(response, origin);
     };
     
     // Validate required fields
@@ -63,16 +70,12 @@ export async function POST(request: NextRequest) {
       success: response.success
     });
 
-    // Return response with appropriate status code and CORS headers
+    // Return response with appropriate status code and secure CORS headers
     const statusCode = response.success ? 200 : 400;
     const jsonResponse = NextResponse.json(response, { status: statusCode });
     
-    // Add CORS headers to allow third-party domains
-    jsonResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-    jsonResponse.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    jsonResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return jsonResponse;
+    // 🔐 NEW: Apply secure CORS headers
+    return applyCorsHeaders(jsonResponse, origin);
     
   } catch (error) {
     console.error('[Community API] Error processing request:', error);
@@ -83,12 +86,8 @@ export async function POST(request: NextRequest) {
       error: 'Internal server error'
     }, { status: 500 });
     
-    // Add CORS headers to error responses too
-    errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-    errorResponse.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return errorResponse;
+    // 🔐 NEW: Apply secure CORS headers to error response
+    return applyCorsHeaders(errorResponse, origin);
   }
 }
 
@@ -100,17 +99,8 @@ export async function GET() {
   }, { status: 405 });
 }
 
-// Handle OPTIONS requests for CORS
+// 🔐 NEW: Handle OPTIONS requests with secure CORS
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || '';
-  
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
-  });
+  return createCorsPreflightResponse(origin);
 } 

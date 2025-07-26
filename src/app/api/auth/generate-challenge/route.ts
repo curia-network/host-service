@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { 
+  applyCorsHeaders, 
+  validateOriginOrError, 
+  createCorsPreflightResponse 
+} from '@/lib/corsUtils';
 
 /**
  * POST /api/auth/generate-challenge
@@ -17,6 +22,12 @@ export async function POST(request: NextRequest) {
   try {
     // Get request origin for CORS
     const origin = request.headers.get('origin') || '';
+    
+    // 🔐 NEW: Early origin validation for authentication endpoint
+    const corsError = validateOriginOrError(origin);
+    if (corsError) {
+      return corsError;
+    }
     
     const body: GenerateChallengeRequest = await request.json();
     const { identityType, walletAddress, ensName, upAddress } = body;
@@ -63,12 +74,8 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json(responseData);
     
-    // Add CORS headers
-    response.headers.set('Access-Control-Allow-Origin', origin || '*');
-    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return response;
+    // 🔐 NEW: Apply secure CORS headers
+    return applyCorsHeaders(response, origin);
 
   } catch (error) {
     console.error('[generate-challenge] Error:', error);
@@ -77,28 +84,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
     
-    // Add CORS headers to error response
-    errorResponse.headers.set('Access-Control-Allow-Origin', origin || '*');
-    errorResponse.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return errorResponse;
+    // 🔐 NEW: Apply secure CORS headers to error response
+    return applyCorsHeaders(errorResponse, origin);
   }
 }
 
-// Handle OPTIONS requests for CORS
+// 🔐 NEW: Handle OPTIONS requests with secure CORS
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || '';
-  
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': origin || '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
-  });
+  return createCorsPreflightResponse(origin);
 }
 
 // Generate a cryptographically secure challenge

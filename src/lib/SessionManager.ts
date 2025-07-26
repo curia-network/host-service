@@ -265,6 +265,50 @@ export class SessionManager {
     }
   }
 
+  /**
+   * Bulk update sessions from session service (used by SessionServiceProxy integration)
+   * Replaces entire session cache with authoritative data from session service
+   */
+  public bulkUpdateSessions(sessions: SessionData[]): void {
+    try {
+      console.log('[SessionManager] 🔄 Bulk updating sessions from session service:', sessions.length, 'sessions');
+      
+      // Validate and sanitize incoming sessions
+      const validSessions = sessions
+        .map(session => ({
+          ...session,
+          expiresAt: new Date(session.expiresAt),
+          lastAccessedAt: new Date(session.lastAccessedAt),
+        }))
+        .filter(this.validateSession);
+
+      console.log('[SessionManager] 🔄 Valid sessions after filtering:', validSessions.length);
+
+      // Update storage with authoritative session data
+      this.storage.activeSessions = validSessions;
+      this.storage.lastSyncedAt = Date.now();
+
+      // Ensure active session token is still valid
+      const activeStillValid = validSessions.some(
+        s => s.sessionToken === this.storage.activeSessionToken
+      );
+
+      if (!activeStillValid) {
+        // Current active session is invalid, set to first available session
+        this.storage.activeSessionToken = validSessions[0]?.sessionToken || null;
+        console.log('[SessionManager] 🔄 Active session updated to:', this.storage.activeSessionToken);
+      }
+
+      this.saveToStorage();
+      this.notifyListeners();
+
+      console.log('[SessionManager] ✅ Bulk update completed:', validSessions.length, 'sessions, active:', this.storage.activeSessionToken);
+    } catch (error) {
+      console.error('[SessionManager] Failed to bulk update sessions:', error);
+      throw error;
+    }
+  }
+
   // ============================================================================
   // GETTERS
   // ============================================================================

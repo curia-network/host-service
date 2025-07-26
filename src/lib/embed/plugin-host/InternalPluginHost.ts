@@ -185,6 +185,7 @@ export class InternalPluginHost {
   // Session Service - Dedicated iframe for cross-domain session management
   private sessionServiceIframe: HTMLIFrameElement | null = null;
   private sessionServiceProxy: SessionServiceProxy | null = null;
+  private sessionServiceSyncTimer: NodeJS.Timeout | null = null;
   
   // UI State
   private communitySidebar: CommunitySidebar | null = null;
@@ -260,7 +261,10 @@ export class InternalPluginHost {
     );
     
     // 🚀 NEW: Initialize dedicated session service iframe for cross-domain session persistence
-    this.initializeSessionService();
+    // (async, non-blocking - will sync session data when ready)
+    this.initializeSessionService().catch(error => {
+      console.error('[InternalPluginHost] Session service initialization failed:', error);
+    });
     
     // Initialize the embed
     this.initialize();
@@ -271,7 +275,7 @@ export class InternalPluginHost {
   /**
    * Initialize dedicated session service iframe for cross-domain session persistence
    */
-  private initializeSessionService(): void {
+  private async initializeSessionService(): Promise<void> {
     console.log('[InternalPluginHost] Initializing dedicated session service iframe');
     
     try {
@@ -281,9 +285,78 @@ export class InternalPluginHost {
       this.sessionServiceProxy = sessionService.proxy;
       
       console.log('[InternalPluginHost] Session service singleton initialized');
+      
+      // 🚀 NEW: Wait for session service to be ready and sync data to parent SessionManager
+      await this.syncSessionServiceToParent();
+      
     } catch (error) {
       console.error('[InternalPluginHost] Failed to initialize session service:', error);
     }
+  }
+
+  /**
+   * Sync session data from session service to parent SessionManager (explicit integration)
+   */
+  private async syncSessionServiceToParent(): Promise<void> {
+    try {
+      if (!this.sessionServiceProxy) {
+        console.warn('[InternalPluginHost] No session service proxy available for sync');
+        return;
+      }
+
+      console.log('[InternalPluginHost] 🔄 Waiting for session service to be ready...');
+      await this.sessionServiceProxy.waitForReady();
+      
+      console.log('[InternalPluginHost] 🔄 Session service ready, syncing data to parent SessionManager...');
+      
+      // Pull authoritative session data from session service
+      const sessions = await this.sessionServiceProxy.getAllSessions();
+      const activeSession = await this.sessionServiceProxy.getActiveSession();
+      
+      console.log('[InternalPluginHost] 🔄 Retrieved from session service:', sessions.length, 'sessions, active:', activeSession?.userId);
+      
+      // Update parent SessionManager with authoritative data
+      sessionManager.bulkUpdateSessions(sessions);
+      
+      if (activeSession && sessions.some(s => s.sessionToken === activeSession.sessionToken)) {
+        sessionManager.setActiveSession(activeSession.sessionToken);
+        console.log('[InternalPluginHost] 🔄 Active session set to:', activeSession.userId);
+      }
+      
+      console.log('[InternalPluginHost] ✅ Session service sync completed successfully');
+      
+      // Setup periodic refresh to keep parent in sync with session service
+      this.setupSessionServicePeriodicSync();
+      
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to sync session service to parent:', error);
+    }
+  }
+
+  /**
+   * Setup periodic sync timer to keep parent SessionManager in sync with session service
+   */
+  private setupSessionServicePeriodicSync(): void {
+    // Clear any existing timer
+    if (this.sessionServiceSyncTimer) {
+      clearInterval(this.sessionServiceSyncTimer);
+    }
+    
+    // Setup new periodic sync (every 30 seconds)
+    this.sessionServiceSyncTimer = setInterval(async () => {
+      try {
+        if (!this.sessionServiceProxy) return;
+        
+        console.log('[InternalPluginHost] 🔄 Periodic session service sync...');
+        const sessions = await this.sessionServiceProxy.getAllSessions();
+        sessionManager.bulkUpdateSessions(sessions);
+        console.log('[InternalPluginHost] 🔄 Periodic sync completed:', sessions.length, 'sessions');
+      } catch (error) {
+        console.warn('[InternalPluginHost] Periodic session sync failed:', error);
+      }
+    }, 30000); // 30 seconds
+    
+    console.log('[InternalPluginHost] 🔄 Periodic session service sync timer established');
   }
 
   /**
@@ -1491,6 +1564,11 @@ export class InternalPluginHost {
     }
     
     // Clean up session service references (singleton will be cleaned by shared resources)
+    if (this.sessionServiceSyncTimer) {
+      clearInterval(this.sessionServiceSyncTimer);
+      this.sessionServiceSyncTimer = null;
+      console.log('[InternalPluginHost] Session service sync timer cleaned up');
+    }
     this.sessionServiceProxy = null;
     this.sessionServiceIframe = null;
     

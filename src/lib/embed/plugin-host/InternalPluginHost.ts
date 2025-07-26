@@ -425,6 +425,9 @@ export class InternalPluginHost {
       this.apiProxyReadyResolve = null;
       this.apiProxyReadyPromise = null;
     }
+
+    // 🚀 NEW: Trigger SessionManager initial sync now that API proxy is ready
+    sessionManager.triggerInitialSyncWhenReady();
   }
 
   /**

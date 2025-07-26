@@ -88,13 +88,24 @@ export class SessionManager {
     if (apiProxy) {
       console.log('[SessionManager] API proxy configured for CSP-compliant calls');
     }
-    
-    // 🚀 FIX: Now that we're properly configured, do initial database sync
+    console.log('[SessionManager] Configuration complete - initial sync deferred until API proxy ready');
+  }
+
+  /**
+   * Trigger initial database sync when API proxy is confirmed ready
+   * Called from InternalPluginHost when 'curia-api-proxy-ready' event is received
+   */
+  public triggerInitialSyncWhenReady(): void {
+    if (!this.hostServiceUrl) {
+      console.warn('[SessionManager] Cannot sync - not configured yet');
+      return;
+    }
+
     if (this.storage.activeSessions.length > 0) {
-      console.log('[SessionManager] Triggering initial database sync after configuration');
+      console.log('[SessionManager] 🚀 Triggering initial database sync (API proxy ready)');
       this.syncWithDatabase();
     } else {
-      console.log('[SessionManager] No sessions to sync initially');
+      console.log('[SessionManager] No sessions to sync initially (API proxy ready)');
     }
   }
 

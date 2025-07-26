@@ -16,6 +16,7 @@
 import { EmbedConfig } from '../types/EmbedTypes';
 import { ApiProxyClient } from '@curia_/iframe-api-proxy';
 import { sessionManager } from '../../SessionManager';
+import { SessionServiceProxy } from '../services/SessionServiceProxy';
 import { CommunitySidebar } from '../components';
 import {
   AuthenticationService,
@@ -122,6 +123,10 @@ export class InternalPluginHost {
   private iframeManager: IframeManager;
   private apiProxy: ApiProxyClient;
   
+  // Session Service - Dedicated iframe for cross-domain session management
+  private sessionServiceIframe: HTMLIFrameElement | null = null;
+  private sessionServiceProxy: SessionServiceProxy | null = null;
+  
   // UI State
   private communitySidebar: CommunitySidebar | null = null;
   private embedContainer: HTMLElement | null = null;
@@ -195,10 +200,43 @@ export class InternalPluginHost {
       publicKey // Pass public key for signature validation
     );
     
+    // 🚀 NEW: Initialize dedicated session service iframe for cross-domain session persistence
+    this.initializeSessionService();
+    
     // Initialize the embed
     this.initialize();
     
     console.log(`[MULTI-IFRAME] InternalPluginHost initialized with multi-iframe community switching support`);
+  }
+
+  /**
+   * Initialize dedicated session service iframe for cross-domain session persistence
+   */
+  private initializeSessionService(): void {
+    console.log('[InternalPluginHost] Initializing dedicated session service iframe');
+    
+    try {
+      // Create hidden session service iframe
+      this.sessionServiceIframe = document.createElement('iframe');
+      this.sessionServiceIframe.src = `${this.hostServiceUrl}/session-service`;
+      this.sessionServiceIframe.style.display = 'none';
+      this.sessionServiceIframe.style.position = 'absolute';
+      this.sessionServiceIframe.style.width = '0px';
+      this.sessionServiceIframe.style.height = '0px';
+      this.sessionServiceIframe.style.border = 'none';
+      this.sessionServiceIframe.setAttribute('data-purpose', 'session-service');
+      this.sessionServiceIframe.setAttribute('data-curia-iframe', 'true');
+      
+      // Add to document body (not container, since it's hidden)
+      document.body.appendChild(this.sessionServiceIframe);
+      
+      // Initialize proxy
+      this.sessionServiceProxy = new SessionServiceProxy(this.sessionServiceIframe);
+      
+      console.log('[InternalPluginHost] Session service iframe created and proxy initialized');
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to initialize session service:', error);
+    }
   }
 
   /**
@@ -1400,6 +1438,17 @@ export class InternalPluginHost {
     if (this.communitySidebar) {
       this.communitySidebar.destroy();
       this.communitySidebar = null;
+    }
+    
+    // Clean up session service
+    if (this.sessionServiceProxy) {
+      this.sessionServiceProxy.destroy();
+      this.sessionServiceProxy = null;
+    }
+    if (this.sessionServiceIframe && this.sessionServiceIframe.parentNode) {
+      this.sessionServiceIframe.parentNode.removeChild(this.sessionServiceIframe);
+      this.sessionServiceIframe = null;
+      console.log('[InternalPluginHost] Session service iframe removed');
     }
     
     // Clean up community iframes

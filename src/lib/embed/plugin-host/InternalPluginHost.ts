@@ -1468,6 +1468,9 @@ export class InternalPluginHost {
   public destroy(): void {
     console.log('[InternalPluginHost] Destroying plugin host');
     
+    // 🚀 CRITICAL FIX: Stop community polling timer to prevent performance leaks
+    this.stopCommunityPolling();
+    
     // Destroy services
     if (this.authService) {
       this.authService.destroy();

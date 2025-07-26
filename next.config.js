@@ -14,8 +14,8 @@ const nextConfig = {
   headers: async () => {
     return [
       {
-        // Keep SAMEORIGIN for all routes except /embed (which gets no headers = allows embedding)
-        source: '/((?!embed).*)',
+        // Keep SAMEORIGIN for all routes except /embed and /session-service (which get no headers = allows embedding)
+        source: '/((?!embed|session-service).*)',
         headers: [
           {
             key: 'X-Frame-Options',

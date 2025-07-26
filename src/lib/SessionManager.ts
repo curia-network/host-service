@@ -56,6 +56,7 @@ export class SessionManager {
   private syncInterval: NodeJS.Timeout | null = null;
   private isInitialized = false;
   private hostServiceUrl: string = ''; // Host service URL for API calls
+  private apiProxy: any | null = null; // API proxy for CSP-compliant calls
 
   private constructor() {
     this.storage = this.loadFromStorage();
@@ -75,12 +76,16 @@ export class SessionManager {
   }
 
   /**
-   * Configure the host service URL for API calls
+   * Configure the host service URL and API proxy for API calls
    * Must be called before making any API calls in embed context
    */
-  public configure(hostServiceUrl: string): void {
+  public configure(hostServiceUrl: string, apiProxy?: any): void {
     this.hostServiceUrl = hostServiceUrl;
+    this.apiProxy = apiProxy || null;
     console.log('[SessionManager] Configured with host service URL:', hostServiceUrl);
+    if (apiProxy) {
+      console.log('[SessionManager] API proxy configured for CSP-compliant calls');
+    }
   }
 
   // ============================================================================
@@ -518,6 +523,33 @@ export class SessionManager {
     }, SessionManager.SYNC_INTERVAL);
   }
 
+  /**
+   * Sync localStorage sessions with database
+   * Ensures sessions remain up to date across browser sessions
+   * 
+   * =============================================================================
+   * 🚀 Enhanced API Proxy Integration
+   * =============================================================================
+   * 
+   * When running in CSP-restricted environments (like external embeds), this
+   * method uses the enhanced iframe-api-proxy to make authenticated requests.
+   * 
+   * OLD (complex, forced format):
+   * const requestData = { method: 'getSessions', userId: '', communityId: '', params: { sessionToken } };
+   * const response = await this.apiProxy.makeApiRequest(requestData);
+   * 
+   * NEW (clean, semantic):
+   * const sessions = await this.apiProxy.makeAuthenticatedRequest('/api/auth/sessions', token);
+   * 
+   * This provides:
+   * - ✅ Proper HTTP semantics (GET with Authorization header)
+   * - ✅ Clean, readable code
+   * - ✅ No artificial userId/communityId placeholders
+   * - ✅ CSP compliance through iframe proxy
+   * - ✅ Automatic fallback to direct fetch when proxy unavailable
+   * 
+   * =============================================================================
+   */
   public async syncWithDatabase(): Promise<void> {
     try {
       const activeToken = this.getActiveToken();
@@ -526,23 +558,44 @@ export class SessionManager {
         return;
       }
 
-      // Use configured host service URL if available, fallback to relative path for regular app usage
-      const apiUrl = this.hostServiceUrl ? `${this.hostServiceUrl}/api/auth/sessions` : '/api/auth/sessions';
-      
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${activeToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      let dbSessions: SessionData[] = [];
 
-      if (!response.ok) {
-        console.warn('[SessionManager] Database sync failed:', response.status, response.statusText);
-        return;
+      // Use API proxy if available (embed context with CSP), otherwise direct fetch
+      if (this.apiProxy) {
+        console.log('[SessionManager] Using API proxy for database sync (CSP-compliant)');
+        
+        try {
+          // 🚀 NEW: Use clean authenticated request API
+          const response = await this.apiProxy.makeAuthenticatedRequest('/api/auth/sessions', activeToken);
+          
+          // Extract data from ApiResponse format
+          dbSessions = response.success ? response.data : [];
+          console.log('[SessionManager] API proxy database sync success:', dbSessions.length, 'sessions');
+        } catch (proxyError) {
+          console.warn('[SessionManager] API proxy database sync error:', proxyError);
+          return;
+        }
+      } else {
+        // Fallback to direct fetch for regular app usage
+        console.log('[SessionManager] Using direct fetch for database sync');
+        
+        const apiUrl = this.hostServiceUrl ? `${this.hostServiceUrl}/api/auth/sessions` : '/api/auth/sessions';
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${activeToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          console.warn('[SessionManager] Database sync failed:', response.status, response.statusText);
+          return;
+        }
+
+        dbSessions = await response.json();
       }
-
-      const dbSessions: SessionData[] = await response.json();
       
       // Merge database sessions with localStorage cache
       const mergedSessions = this.mergeSessionStates(this.storage.activeSessions, dbSessions);

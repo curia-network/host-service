@@ -33,25 +33,41 @@ import { EmbedConfig, EmbedStep, ProfileData, EmbedMode, Community } from '@/typ
 import { ApiProxyServer } from '@curia_/iframe-api-proxy';
 import { sessionManager } from '@/lib/SessionManager';
 
+// 🚀 FIX: Global singleton to prevent multiple ApiProxyServer instances in React Strict Mode
+let globalProxyServer: ApiProxyServer | null = null;
+let serverRefCount = 0;
+
 // API Proxy Server Component - runs in background to handle proxied requests
 const ApiProxyServerComponent: React.FC = () => {
   React.useEffect(() => {
-    // Initialize API proxy server when component mounts
-    const proxyServer = new ApiProxyServer({
-      baseUrl: process.env.NEXT_PUBLIC_HOST_SERVICE_URL || 'https://curia.network',
-      debug: true,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log('[Embed] API proxy server initialized:', proxyServer.getStatus());
+    // 🚀 FIX: Singleton pattern to handle React Strict Mode double-mounting
+    if (!globalProxyServer) {
+      globalProxyServer = new ApiProxyServer({
+        baseUrl: process.env.NEXT_PUBLIC_HOST_SERVICE_URL || 'https://curia.network',
+        debug: true,
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('[Embed] API proxy server initialized (singleton):', globalProxyServer.getStatus());
+    }
+    
+    // Track how many components are using this server
+    serverRefCount++;
+    console.log(`[Embed] API proxy server ref count: ${serverRefCount}`);
 
     // Cleanup on unmount
     return () => {
-      proxyServer.destroy();
-      console.log('[Embed] API proxy server destroyed');
+      serverRefCount--;
+      console.log(`[Embed] API proxy server ref count: ${serverRefCount}`);
+      
+      // Only destroy when no components are using it
+      if (serverRefCount === 0 && globalProxyServer) {
+        globalProxyServer.destroy();
+        globalProxyServer = null;
+        console.log('[Embed] API proxy server destroyed (singleton)');
+      }
     };
   }, []);
 

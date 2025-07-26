@@ -81,6 +81,36 @@ function getIframePermissions(): string {
  * - Orchestrate phase transitions (auth → forum)
  */
 export class InternalPluginHost {
+  // 🚀 FIX: Singleton API proxy to prevent multiple client instances in React Strict Mode
+  private static sharedApiProxy: ApiProxyClient | null = null;
+  
+  /**
+   * Get shared ApiProxyClient instance for embed context
+   */
+  private static getSharedApiProxy(): ApiProxyClient {
+    if (!InternalPluginHost.sharedApiProxy) {
+      console.log('[InternalPluginHost] Creating shared ApiProxyClient singleton');
+      InternalPluginHost.sharedApiProxy = new ApiProxyClient({
+        debug: true,
+        defaultTimeout: 10000,
+        maxRetries: 3
+      });
+    } else {
+      console.log('[InternalPluginHost] Reusing shared ApiProxyClient singleton');
+    }
+    return InternalPluginHost.sharedApiProxy;
+  }
+  
+  /**
+   * Clean up shared resources (called when embed is destroyed)
+   */
+  private static cleanupSharedResources(): void {
+    if (InternalPluginHost.sharedApiProxy) {
+      console.log('[InternalPluginHost] Destroying shared ApiProxyClient singleton');
+      InternalPluginHost.sharedApiProxy.destroy();
+      InternalPluginHost.sharedApiProxy = null;
+    }
+  }
   private container: HTMLElement;
   private config: EmbedConfig;
   private hostServiceUrl: string;
@@ -126,15 +156,11 @@ export class InternalPluginHost {
     this.forumUrl = forumUrl;
     this.publicKey = publicKey;
     
-    // 🔧 Configure SessionManager with host service URL for embed context
-    sessionManager.configure(hostServiceUrl);
+    // 🚀 FIX: Use singleton API proxy to prevent multiple client instances
+    this.apiProxy = InternalPluginHost.getSharedApiProxy();
     
-    // Initialize API proxy
-    this.apiProxy = new ApiProxyClient({
-      debug: true,
-      defaultTimeout: 10000,
-      maxRetries: 3
-    });
+    // 🔧 Configure SessionManager with host service URL and API proxy for embed context
+    sessionManager.configure(hostServiceUrl, this.apiProxy);
     
     // Initialize services with dependency injection
     // Note: Create IframeManager first to get UID for MessageRouter
@@ -1388,6 +1414,9 @@ export class InternalPluginHost {
     // Clear container
     this.container.innerHTML = '';
     this.embedContainer = null;
+    
+    // 🚀 FIX: Clean up shared API proxy when instance is destroyed
+    InternalPluginHost.cleanupSharedResources();
     
     console.log('[InternalPluginHost] Plugin host destroyed');
   }

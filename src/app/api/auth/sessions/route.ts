@@ -234,20 +234,10 @@ export async function GET(request: NextRequest) {
 // ============================================================================
 
 export async function POST(request: NextRequest) {
-  try {
-    // This endpoint could be used for creating new sessions directly
-    // For now, we use the existing verify-signature endpoint
-    return NextResponse.json(
-      { error: 'Use /api/auth/verify-signature to create new sessions' },
-      { status: 405 }
-    );
-  } catch (error) {
-    console.error('[POST /api/auth/sessions] Error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Method not allowed. Use GET to retrieve sessions.' },
+    { status: 405 }
+  );
 }
 
 // ============================================================================

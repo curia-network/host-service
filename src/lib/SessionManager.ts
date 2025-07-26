@@ -61,11 +61,11 @@ export class SessionManager {
   private constructor() {
     this.storage = this.loadFromStorage();
     this.setupStorageListener();
-    this.setupPeriodicSync();
+    this.setupPeriodicTimer(); // 🚀 FIX: Setup timer only, defer initial sync
     this.migrateLegacySession();
     this.isInitialized = true;
     
-    console.log('[SessionManager] Initialized with', this.storage.activeSessions.length, 'sessions');
+    console.log('[SessionManager] Initialized with', this.storage.activeSessions.length, 'sessions (sync deferred until configured)');
   }
 
   public static getInstance(): SessionManager {
@@ -78,6 +78,8 @@ export class SessionManager {
   /**
    * Configure the host service URL and API proxy for API calls
    * Must be called before making any API calls in embed context
+   * 
+   * 🚀 FIX: Now triggers initial database sync after configuration
    */
   public configure(hostServiceUrl: string, apiProxy?: any): void {
     this.hostServiceUrl = hostServiceUrl;
@@ -85,6 +87,14 @@ export class SessionManager {
     console.log('[SessionManager] Configured with host service URL:', hostServiceUrl);
     if (apiProxy) {
       console.log('[SessionManager] API proxy configured for CSP-compliant calls');
+    }
+    
+    // 🚀 FIX: Now that we're properly configured, do initial database sync
+    if (this.storage.activeSessions.length > 0) {
+      console.log('[SessionManager] Triggering initial database sync after configuration');
+      this.syncWithDatabase();
+    } else {
+      console.log('[SessionManager] No sessions to sync initially');
     }
   }
 
@@ -507,20 +517,22 @@ export class SessionManager {
   // DATABASE SYNCHRONIZATION
   // ============================================================================
 
-  private setupPeriodicSync(): void {
+  /**
+   * Setup periodic sync timer (without initial sync)
+   * 🚀 FIX: Renamed from setupPeriodicSync to be more explicit
+   */
+  private setupPeriodicTimer(): void {
     if (typeof window === 'undefined') return;
 
-    // Sync on initialization if we have sessions
-    if (this.storage.activeSessions.length > 0) {
-      this.syncWithDatabase();
-    }
-
-    // Set up periodic sync
+    // 🚀 FIX: Only set up the periodic timer, don't sync immediately
+    // Initial sync will be triggered by configure() when ready
     this.syncInterval = setInterval(() => {
       if (this.storage.activeSessions.length > 0) {
         this.syncWithDatabase();
       }
     }, SessionManager.SYNC_INTERVAL);
+    
+    console.log('[SessionManager] Periodic sync timer setup (initial sync deferred)');
   }
 
   /**

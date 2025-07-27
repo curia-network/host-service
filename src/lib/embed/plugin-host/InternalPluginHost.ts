@@ -1584,6 +1584,9 @@ export class InternalPluginHost {
         { method: 'POST' }          // options parameter
       );
       
+      // 🐛 DEBUG: Log production response format
+      console.log(`[InternalPluginHost] 🐛 PRODUCTION Auto-join response:`, JSON.stringify(response, null, 2));
+      
       if (response.success) {
         const { isNewMember, status, visitCount } = response.membership;
         

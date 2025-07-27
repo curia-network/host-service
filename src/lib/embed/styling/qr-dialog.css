@@ -1,0 +1,317 @@
+/*
+ * QR Dialog Styles
+ * Responsive dialog component for displaying QR codes
+ */
+
+/* ============================================================================
+   BACKDROP AND OVERLAY
+   ============================================================================ */
+
+.qr-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.qr-dialog-backdrop-visible {
+  opacity: 1;
+}
+
+/* ============================================================================
+   DIALOG CONTAINER
+   ============================================================================ */
+
+.qr-dialog {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-height: 90vh;
+  max-width: 400px;
+  width: 90vw;
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+  outline: none;
+}
+
+.qr-dialog-visible {
+  transform: scale(1);
+}
+
+/* ============================================================================
+   DIALOG HEADER
+   ============================================================================ */
+
+.qr-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+}
+
+.qr-dialog-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  line-height: 1.4;
+}
+
+.qr-dialog-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.15s ease;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-dialog-close:hover {
+  background: var(--hover-bg, rgba(148, 163, 184, 0.1));
+  color: var(--text-primary, #1e293b);
+}
+
+.qr-dialog-close:focus {
+  outline: 2px solid var(--focus-color, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   DIALOG CONTENT
+   ============================================================================ */
+
+.qr-dialog-content {
+  padding: 1.5rem;
+}
+
+.qr-code-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.1));
+}
+
+.qr-code-image {
+  width: 100%;
+  max-width: 256px;
+  height: auto;
+  border-radius: 8px;
+  background: white;
+  padding: 8px;
+}
+
+/* ============================================================================
+   TRANSFER INFO
+   ============================================================================ */
+
+.qr-transfer-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.qr-session-count {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary, #1e293b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.qr-instructions {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   ACTIONS
+   ============================================================================ */
+
+.qr-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.qr-copy-button {
+  background: var(--button-secondary-bg, #f1f5f9);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+  color: var(--text-primary, #1e293b);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qr-copy-button:hover:not(:disabled) {
+  background: var(--button-secondary-hover, #e2e8f0);
+  border-color: var(--border-hover, rgba(148, 163, 184, 0.3));
+}
+
+.qr-copy-button:focus {
+  outline: 2px solid var(--focus-color, #3b82f6);
+  outline-offset: 2px;
+}
+
+.qr-copy-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .qr-dialog {
+    max-width: 480px;
+    width: auto;
+  }
+  
+  .qr-dialog-header {
+    padding: 1.5rem 2rem 1.25rem 2rem;
+  }
+  
+  .qr-dialog-content {
+    padding: 2rem;
+  }
+  
+  .qr-code-container {
+    padding: 1.5rem;
+  }
+  
+  .qr-code-image {
+    max-width: 320px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .qr-dialog {
+    max-width: 520px;
+  }
+  
+  .qr-dialog-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* ============================================================================
+   DARK THEME SUPPORT
+   ============================================================================ */
+
+.dark .qr-dialog {
+  --bg-primary: #1e293b;
+  --bg-secondary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: rgba(148, 163, 184, 0.2);
+  --border-hover: rgba(148, 163, 184, 0.3);
+  --hover-bg: rgba(148, 163, 184, 0.1);
+  --button-secondary-bg: #334155;
+  --button-secondary-hover: #475569;
+  --focus-color: #60a5fa;
+}
+
+.dark .qr-code-image {
+  background: white; /* QR code background should stay white for readability */
+}
+
+/* ============================================================================
+   MOBILE OPTIMIZATIONS
+   ============================================================================ */
+
+@media (max-width: 480px) {
+  .qr-dialog-backdrop {
+    padding: 0.75rem;
+  }
+  
+  .qr-dialog {
+    width: 95vw;
+    max-width: none;
+  }
+  
+  .qr-dialog-header {
+    padding: 1rem 1.25rem 0.75rem 1.25rem;
+  }
+  
+  .qr-dialog-content {
+    padding: 1.25rem;
+  }
+  
+  .qr-dialog-title {
+    font-size: 1rem;
+  }
+  
+  .qr-code-container {
+    padding: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .qr-code-image {
+    max-width: 240px;
+  }
+  
+  .qr-copy-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .qr-dialog-backdrop,
+  .qr-dialog,
+  .qr-dialog-close,
+  .qr-copy-button {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .qr-dialog {
+    border-width: 2px;
+  }
+  
+  .qr-dialog-close,
+  .qr-copy-button {
+    border-width: 2px;
+  }
+} 

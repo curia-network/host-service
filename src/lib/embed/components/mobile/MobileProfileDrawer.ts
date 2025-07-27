@@ -12,6 +12,7 @@
 import { UserProfile } from '../profile/UserProfile';
 import { getGradientStyle, getGradientClass, getIconHTML } from '../../styling';
 import { sessionManager, SessionData } from '../../../SessionManager';
+import { QRCodeGenerator, QRCodeDialog, type SessionTransferData } from '../qr';
 
 export interface MobileProfileDrawerOptions {
   userProfile: UserProfile;
@@ -262,6 +263,17 @@ export class MobileProfileDrawer {
       action: 'add-session'
     });
     actionsSection.appendChild(addAccount);
+
+    // Share Login QR (if transferable sessions exist)
+    const transferableSessions = this.getTransferableSessions();
+    if (transferableSessions.length > 0) {
+      const shareQR = this.renderAction({
+        icon: '📱',
+        text: 'Share Login QR',
+        action: 'share-qr'
+      });
+      actionsSection.appendChild(shareQR);
+    }
     
     // Settings (same action as desktop)
     const settings = this.renderAction({
@@ -376,7 +388,12 @@ export class MobileProfileDrawer {
     
     // Click handler
     action.addEventListener('click', () => {
-      this.options.onMenuAction(config.action);
+      if (config.action === 'share-qr') {
+        // Handle QR generation directly
+        this.handleShareQR();
+      } else {
+        this.options.onMenuAction(config.action);
+      }
     });
     
     return action;
@@ -426,6 +443,61 @@ export class MobileProfileDrawer {
       console.log('[MobileProfileDrawer] Session switch delegated successfully');
     } catch (error) {
       console.error('[MobileProfileDrawer] Failed to delegate session switch:', error);
+    }
+  }
+
+  /**
+   * Get sessions that can be transferred via QR code
+   */
+  private getTransferableSessions(): SessionTransferData[] {
+    const allSessions = this.sessionManager.getAllSessions();
+    const now = new Date();
+    
+    return allSessions
+      .filter(session => {
+        // Must be active and not expired
+        if (!session.isActive || session.expiresAt <= now) return false;
+        
+        // Must have required fields
+        if (!session.sessionToken || !session.userId) return false;
+        
+        return true;
+      })
+      .map(session => QRCodeGenerator.convertToTransferFormat(session));
+  }
+
+  /**
+   * Handle QR code generation and display
+   */
+  private async handleShareQR(): Promise<void> {
+    try {
+      console.log('[MobileProfileDrawer] Generating QR code for session transfer');
+      
+      // Get transferable sessions
+      const transferableSessions = this.getTransferableSessions();
+      
+      if (transferableSessions.length === 0) {
+        console.warn('[MobileProfileDrawer] No transferable sessions available');
+        return;
+      }
+
+      console.log('[MobileProfileDrawer] Found', transferableSessions.length, 'transferable sessions');
+
+      // Create and show QR dialog
+      const qrDialog = new QRCodeDialog({
+        sessions: transferableSessions,
+        onClose: () => {
+          console.log('[MobileProfileDrawer] QR dialog closed');
+          qrDialog.hide();
+        }
+      });
+
+      await qrDialog.show();
+      
+      console.log('[MobileProfileDrawer] QR dialog displayed successfully');
+      
+    } catch (error) {
+      console.error('[MobileProfileDrawer] Failed to generate QR code:', error);
     }
   }
 

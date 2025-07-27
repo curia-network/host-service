@@ -9,6 +9,7 @@
 
 import { getGradientClass, getGradientStyle, getUserInitials, getIdentityIcon } from '../../styling';
 import { sessionManager, SessionData } from '../../../SessionManager';
+import { QRCodeGenerator, QRCodeDialog, type SessionTransferData } from '../qr';
 
 export interface UserProfile {
   userId: string;
@@ -439,12 +440,23 @@ export class UserProfileComponent {
    * Create the menu actions section  
    */
   private createMenuActions(): string {
+    // Check if we have transferable sessions for QR code generation
+    const transferableSessions = this.getTransferableSessions();
+    const hasTransferableSessions = transferableSessions.length > 0;
+    
     return `
       <div class="profile-menu-actions">
         <button class="profile-menu-action" data-action="add-session">
           <div class="profile-menu-action-icon">➕</div>
           <span>Add Another Account</span>
         </button>
+        ${hasTransferableSessions ? `
+          <button class="profile-menu-action" data-action="share-qr">
+            <div class="profile-menu-action-icon">📱</div>
+            <span>Share Login QR</span>
+            <div class="profile-menu-action-badge">${transferableSessions.length}</div>
+          </button>
+        ` : ''}
         <button class="profile-menu-action" data-action="sign-out">
           <div class="profile-menu-action-icon">🚪</div>
           <span>Sign Out</span>
@@ -470,6 +482,63 @@ export class UserProfileComponent {
   }
 
   /**
+   * Get sessions that can be transferred via QR code
+   */
+  private getTransferableSessions(): SessionTransferData[] {
+    const allSessions = this.sessionManager.getAllSessions();
+    const now = new Date();
+    
+    return allSessions
+      .filter(session => {
+        // Must be active and not expired
+        if (!session.isActive || session.expiresAt <= now) return false;
+        
+        // Must have required fields
+        if (!session.sessionToken || !session.userId) return false;
+        
+        return true;
+      })
+      .map(session => QRCodeGenerator.convertToTransferFormat(session));
+  }
+
+  /**
+   * Handle QR code generation and display
+   */
+  private async handleShareQR(): Promise<void> {
+    try {
+      console.log('[UserProfile] Generating QR code for session transfer');
+      
+      // Get transferable sessions
+      const transferableSessions = this.getTransferableSessions();
+      
+      if (transferableSessions.length === 0) {
+        console.warn('[UserProfile] No transferable sessions available');
+        // Could show an error message to user here
+        return;
+      }
+
+      console.log('[UserProfile] Found', transferableSessions.length, 'transferable sessions');
+
+      // Create and show QR dialog
+      const qrDialog = new QRCodeDialog({
+        sessions: transferableSessions,
+        onClose: () => {
+          console.log('[UserProfile] QR dialog closed');
+          qrDialog.hide();
+        }
+      });
+
+      await qrDialog.show();
+      
+      console.log('[UserProfile] QR dialog displayed successfully');
+      
+    } catch (error) {
+      console.error('[UserProfile] Failed to generate QR code:', error);
+      // Could show error message to user here
+    }
+  }
+
+  /**
    * Attach enhanced click handlers for menu interactions
    */
   private attachMenuHandlers(menu: HTMLElement): void {
@@ -485,6 +554,9 @@ export class UserProfileComponent {
       if (action === 'switch-session' && token) {
         // Handle session switching directly
         this.handleSessionSwitch(token);
+      } else if (action === 'share-qr') {
+        // Handle QR code generation directly
+        this.handleShareQR();
       } else if (action && this.options.onMenuAction) {
         // Handle other actions through parent callback
         this.options.onMenuAction(action);

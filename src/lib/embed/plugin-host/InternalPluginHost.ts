@@ -1323,11 +1323,8 @@ export class InternalPluginHost {
       this.closeDiscoveryModal();
       
       // 2. Switch to selected community using existing infrastructure
+      // This includes auto-join + sidebar refresh, so no need for duplicate refresh
       await this.switchToCommunity(communityId);
-      
-      // 3. 🚀 FIX: Explicitly refresh sidebar to ensure discovery joins show up
-      console.log('[InternalPluginHost] Refreshing sidebar after discovery completion');
-      await this.refreshCommunitySidebar();
       
       console.log('[InternalPluginHost] Discovery-to-community switch completed');
     } catch (error) {

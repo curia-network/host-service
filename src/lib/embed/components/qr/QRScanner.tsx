@@ -7,6 +7,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import jsQR from 'jsqr';
+import { hasIOSCameraBug } from '../../utils/deviceDetection';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -77,18 +78,81 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       streamRef.current = stream;
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        const video = videoRef.current;
         
-        setState(prev => ({
-          ...prev,
-          hasPermission: true,
-          isLoading: false,
-          instruction: 'Point your camera at the QR code'
-        }));
+        // iOS Safari PWA fix: Set up video event handlers BEFORE setting srcObject
+        let videoLoadTimeout: NodeJS.Timeout;
+        let hasVideoLoaded = false;
 
-        // Start scanning loop
-        startScanning();
+        const handleCanPlay = () => {
+          if (!hasVideoLoaded) {
+            hasVideoLoaded = true;
+            clearTimeout(videoLoadTimeout);
+            console.log('[QRScanner] Video canplay event - camera ready');
+            
+            setState(prev => ({
+              ...prev,
+              hasPermission: true,
+              isLoading: false,
+              instruction: 'Point your camera at the QR code'
+            }));
+
+            // Start scanning loop
+            startScanning();
+          }
+        };
+
+        const handleLoadedMetadata = () => {
+          console.log('[QRScanner] Video metadata loaded');
+        };
+
+        const handlePlay = () => {
+          console.log('[QRScanner] Video play event');
+        };
+
+        const handleSuspend = () => {
+          console.log('[QRScanner] Video suspend event - potential iOS Safari PWA issue');
+        };
+
+        // Set up event listeners
+        video.addEventListener('canplay', handleCanPlay, { once: true });
+        video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+        video.addEventListener('play', handlePlay, { once: true });
+        video.addEventListener('suspend', handleSuspend, { once: true });
+
+        // iOS Safari PWA timeout: If video doesn't reach canplay within 5 seconds, it's likely stuck
+        videoLoadTimeout = setTimeout(() => {
+          if (!hasVideoLoaded) {
+            console.error('[QRScanner] Video load timeout - iOS Safari PWA camera bug detected');
+            
+            let errorMessage = 'Camera failed to start.';
+            if (hasIOSCameraBug()) {
+              errorMessage = 'Camera failed to start. This is a known iOS Safari PWA issue. Try closing and reopening the app, or restart your device.';
+            } else {
+              errorMessage = 'Camera failed to start. Please try again or restart the app.';
+            }
+            
+            setState(prev => ({
+              ...prev,
+              hasPermission: false,
+              isLoading: false,
+              error: errorMessage,
+              instruction: 'Camera access failed'
+            }));
+
+            onError(errorMessage);
+          }
+        }, 5000);
+
+        // Set stream and attempt to play
+        video.srcObject = stream;
+        
+        try {
+          await video.play();
+        } catch (playError) {
+          console.error('[QRScanner] Video play failed:', playError);
+          // Don't throw here - let the timeout handle it
+        }
       }
 
     } catch (error) {
@@ -102,6 +166,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           errorMessage = 'No camera found on this device.';
         } else if (error.name === 'NotSupportedError') {
           errorMessage = 'Camera not supported in this browser.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Camera is being used by another app. Please close other apps and try again.';
         }
       }
 
@@ -115,7 +181,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
       onError(errorMessage);
     }
-  }, [onError]);
+  }, [onError, startScanning]);
 
   const stopCamera = useCallback(() => {
     // Stop animation loop
@@ -155,7 +221,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
-    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    // iOS Safari compatibility: Check multiple video ready states
+    const isVideoReady = video.readyState >= video.HAVE_CURRENT_DATA && 
+                         video.videoWidth > 0 && 
+                         video.videoHeight > 0;
+
+    if (!context || !isVideoReady) {
       // Continue scanning
       animationRef.current = requestAnimationFrame(scanFrame);
       return;
@@ -271,6 +342,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
               <video 
                 ref={videoRef}
                 className="qr-scanner-video"
+                autoPlay
                 playsInline
                 muted
               />
@@ -305,6 +377,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           {state.isScanning && (
             <p className="qr-scanner-hint">
               Make sure the QR code is clearly visible and well-lit
+            </p>
+          )}
+          {hasIOSCameraBug() && state.isLoading && (
+            <p className="qr-scanner-ios-warning">
+              📱 Note: iOS Safari may have camera issues. If camera doesn't start, try restarting the app.
             </p>
           )}
         </div>

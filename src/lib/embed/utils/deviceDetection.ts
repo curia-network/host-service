@@ -23,6 +23,41 @@ export interface DeviceCapabilities {
 // ============================================================================
 
 /**
+ * Check if device is iOS (iPhone, iPad, iPod)
+ * @returns True if device is running iOS
+ */
+export function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+/**
+ * Check if device is iOS Safari (not Chrome/Firefox on iOS)
+ * @returns True if running Safari on iOS
+ */
+export function isIOSSafari(): boolean {
+  return isIOS() && !navigator.userAgent.includes('CriOS') && !navigator.userAgent.includes('FxiOS');
+}
+
+/**
+ * Check if running as PWA (Progressive Web App) on iOS
+ * @returns True if app is added to home screen on iOS
+ */
+export function isIOSPWA(): boolean {
+  return isIOS() && 
+         window.navigator.standalone === true && 
+         !window.matchMedia('(display-mode: browser)').matches;
+}
+
+/**
+ * Check if device has the iOS Safari PWA camera bug
+ * This is a known WebKit bug that affects getUserMedia in PWAs
+ * @returns True if device is likely affected by the camera bug
+ */
+export function hasIOSCameraBug(): boolean {
+  return isIOSPWA() || (isIOSSafari() && window.navigator.standalone === true);
+}
+
+/**
  * Detect device type based on user agent string
  * @param userAgent - Optional user agent string (defaults to navigator.userAgent)
  * @returns Device type classification

@@ -537,6 +537,12 @@ export class InternalPluginHost {
       return;
     }
 
+    // 🚀 FIX: Auto-join user to community if they selected one (first-time user flow)
+    if (authContext.communityId) {
+      console.log(`[InternalPluginHost] Auto-joining user to selected community: ${authContext.communityId}`);
+      await this.autoJoinCommunityOnVisit(authContext.communityId, authContext.userId);
+    }
+
     // Create forum iframe (hidden) just for API proxy functionality
     const tempContainer = document.createElement('div');
     tempContainer.style.display = 'none'; // Hide until full layout
@@ -1319,8 +1325,9 @@ export class InternalPluginHost {
       // 2. Switch to selected community using existing infrastructure
       await this.switchToCommunity(communityId);
       
-      // 3. 🚀 REMOVED: START POLLING: User will join community during iframe load, so start polling to detect it
-      // this.startCommunityPolling('community-switch'); // REPLACED by auto-join on visit
+      // 3. 🚀 FIX: Explicitly refresh sidebar to ensure discovery joins show up
+      console.log('[InternalPluginHost] Refreshing sidebar after discovery completion');
+      await this.refreshCommunitySidebar();
       
       console.log('[InternalPluginHost] Discovery-to-community switch completed');
     } catch (error) {

@@ -16,5 +16,12 @@ export {
   type QRCodeDialogOptions
 } from './QRCodeDialog';
 
-// Future exports:
-// export { QRScanner } from './QRScanner'; 
+export { 
+  QRScanner,
+  type QRScannerProps
+} from './QRScanner';
+
+export { 
+  QRDataDisplay,
+  type QRDataDisplayProps
+} from './QRDataDisplay'; 

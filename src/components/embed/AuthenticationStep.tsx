@@ -12,7 +12,7 @@
 import React, { useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, Globe, Zap, User, ArrowRight, Lock } from 'lucide-react';
+import { Wallet, Globe, Zap, User, ArrowRight, Lock, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AuthenticationStepProps, AuthOption } from '@/types/embed';
 import { UniversalProfileProvider, useUniversalProfile } from '@/contexts/UniversalProfileContext';
@@ -20,6 +20,8 @@ import { EthereumProfileProvider, useEthereumProfile } from '@/contexts/Ethereum
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Image from 'next/image';
 import { sessionManager } from '@/lib/SessionManager';
+import { shouldShowQRScanner } from '@/lib/embed/utils/deviceDetection';
+import { QRScanner, QRDataDisplay, type QRTransferData } from '@/lib/embed/components/qr';
 
 // Separate component for Universal Profile connection
 const UniversalProfileConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSuccess }) => {
@@ -112,6 +114,13 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
 }) => {
   const [isAuthenticating, setIsAuthenticating] = useState<string | null>(null);
   const [connectionType, setConnectionType] = useState<'ens' | 'universal_profile' | null>(null);
+  
+  // QR Scanner state
+  const [qrScannerActive, setQrScannerActive] = useState<boolean>(false);
+  const [qrScannerError, setQrScannerError] = useState<string | null>(null);
+  const [qrScannedData, setQrScannedData] = useState<string | null>(null);
+  const [qrDataDisplayActive, setQrDataDisplayActive] = useState<boolean>(false);
+  const [qrProcessing, setQrProcessing] = useState<boolean>(false);
 
   const handleConnectionSuccess = useCallback((profileData: any) => {
     console.log('[AuthenticationStep] Connection successful:', profileData);
@@ -123,7 +132,13 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
   const handleAuth = useCallback(async (type: string) => {
     setIsAuthenticating(type);
     
-    if (type === 'anonymous') {
+    if (type === 'qr_scanner') {
+      // Show QR scanner component
+      setQrScannerActive(true);
+      setQrScannerError(null);
+      setIsAuthenticating(null); // Reset loading state
+      return;
+    } else if (type === 'anonymous') {
       // Handle anonymous auth directly with our backend
       try {
         const response = await fetch('/api/auth/create-anonymous', {
@@ -177,6 +192,63 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
     setConnectionType(null);
   }, []);
 
+  // QR Scanner handlers
+  const handleQRScanned = useCallback(async (qrData: string) => {
+    try {
+      console.log('[AuthenticationStep] QR data scanned:', qrData.substring(0, 100) + '...');
+      
+      // Store scanned data and show display modal
+      setQrScannedData(qrData);
+      setQrScannerActive(false);
+      setQrDataDisplayActive(true);
+      setQrScannerError(null);
+      
+    } catch (error) {
+      console.error('[AuthenticationStep] QR scan processing failed:', error);
+      setQrScannerError(error instanceof Error ? error.message : 'QR scanning failed');
+    }
+  }, []);
+
+  const handleQRScannerClose = useCallback(() => {
+    setQrScannerActive(false);
+    setQrScannerError(null);
+    setIsAuthenticating(null);
+  }, []);
+
+  const handleQRDataImport = useCallback(async (transferData: QRTransferData) => {
+    try {
+      setQrProcessing(true);
+      console.log('[AuthenticationStep] User approved import of', transferData.sessions.length, 'sessions');
+      
+      // TODO: This is where we'll implement the actual SessionManager import
+      // For now, just show that we parsed the data successfully
+      console.log('[AuthenticationStep] Transfer data:', transferData);
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // For now, just close the modal and show success
+      setQrDataDisplayActive(false);
+      setQrScannedData(null);
+      setQrProcessing(false);
+      
+      // TODO: Replace with actual session import and auth flow continuation
+      console.log('[AuthenticationStep] ✅ QR import complete (placeholder)');
+      
+    } catch (error) {
+      console.error('[AuthenticationStep] QR import failed:', error);
+      setQrScannerError(error instanceof Error ? error.message : 'Import failed');
+      setQrProcessing(false);
+    }
+  }, []);
+
+  const handleQRDataCancel = useCallback(() => {
+    setQrDataDisplayActive(false);
+    setQrScannedData(null);
+    setQrProcessing(false);
+    setIsAuthenticating(null);
+  }, []);
+
   const getAuthOptions = (): AuthOption[] => {
     const allOptions = [
       {
@@ -197,6 +269,16 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
         buttonClass: 'btn-gradient-pink-rose',
         action: () => handleAuth('universal_profile')
       },
+      // QR Scanner option (mobile/tablet only)
+      ...(shouldShowQRScanner() ? [{
+        id: 'qr_scanner',
+        title: 'Login with QR Code',
+        description: 'Scan QR code from another logged-in device',
+        icon: <QrCode className="w-6 h-6" />,
+        gradientClass: 'gradient-violet-purple',
+        buttonClass: 'btn-gradient-violet-purple',
+        action: () => handleAuth('qr_scanner')
+      }] : []),
       {
         id: 'anonymous',
         title: 'Continue as Guest',
@@ -324,6 +406,26 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* QR Scanner */}
+      {qrScannerActive && (
+        <QRScanner
+          isActive={qrScannerActive}
+          onQRScanned={handleQRScanned}
+          onClose={handleQRScannerClose}
+          onError={(error) => setQrScannerError(error)}
+        />
+      )}
+
+      {/* QR Data Display */}
+      {qrDataDisplayActive && qrScannedData && (
+        <QRDataDisplay
+          qrData={qrScannedData}
+          onImport={handleQRDataImport}
+          onCancel={handleQRDataCancel}
+          isProcessing={qrProcessing}
+        />
+      )}
     </div>
   );
 }; 

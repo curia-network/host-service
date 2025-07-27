@@ -13,6 +13,7 @@ import sidebarCSS from './sidebar.css';
 import previewCSS from './preview.css';
 import profileMenuCSS from './profile-menu.css';
 import qrDialogCSS from './qr-dialog.css';
+import qrScannerCSS from './qr-scanner.css';
 import mobileCSS from './mobile.css';
 import lightThemeCSS from './themes/light.css';
 import darkThemeCSS from './themes/dark.css';
@@ -30,6 +31,7 @@ function getCSSContent(): string {
     previewCSS,     // Community preview styles
     profileMenuCSS, // Profile menu styles
     qrDialogCSS,    // QR code dialog styles
+    qrScannerCSS,   // QR code scanner styles
     mobileCSS,      // Mobile responsive styles
     lightThemeCSS,  // Light theme (default)
     darkThemeCSS    // Dark theme overrides

@@ -108,6 +108,15 @@ export class QRCodeGenerator {
    * @param qrData - Scanned QR code data string
    * @returns Parsed session transfer data
    */
+  static parseScannedQR(qrData: string): QRTransferData {
+    return this.parseSessionTransferData(qrData);
+  }
+
+  /**
+   * Parse session data from QR code scan
+   * @param qrData - Scanned QR code data string
+   * @returns Parsed session transfer data
+   */
   static parseSessionTransferData(qrData: string): QRTransferData {
     try {
       const parsed = JSON.parse(qrData);

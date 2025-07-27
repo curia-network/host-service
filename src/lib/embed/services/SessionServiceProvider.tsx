@@ -5,13 +5,15 @@ import { SessionService } from './SessionService';
 
 export const SessionServiceProvider: React.FC = () => {
   useEffect(() => {
-    console.log('[SessionServiceProvider] Initializing session service');
+    console.log('[SessionServiceProvider] Getting shared session service');
     
-    const sessionService = new SessionService();
+    // 🚀 FIX: Use singleton to prevent double initialization in React Strict Mode
+    const sessionService = SessionService.getSharedInstance();
     sessionService.initialize();
     
     return () => {
-      sessionService.destroy();
+      // 🚀 FIX: Reference counting cleanup
+      SessionService.releaseSharedInstance();
     };
   }, []);
 

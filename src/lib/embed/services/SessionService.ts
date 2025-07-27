@@ -16,10 +16,49 @@ interface SessionServiceResponse {
 }
 
 export class SessionService {
+  // 🚀 FIX: Singleton pattern to handle React Strict Mode double-mounting
+  private static sharedInstance: SessionService | null = null;
+  private static refCount = 0;
+  
   private initialized = false;
 
+  /**
+   * Get shared SessionService instance (singleton)
+   */
+  public static getSharedInstance(): SessionService {
+    if (!SessionService.sharedInstance) {
+      console.log('[SessionService] Creating shared singleton instance');
+      SessionService.sharedInstance = new SessionService();
+    } else {
+      console.log('[SessionService] Reusing shared singleton instance');
+    }
+    
+    SessionService.refCount++;
+    console.log(`[SessionService] Ref count: ${SessionService.refCount}`);
+    
+    return SessionService.sharedInstance;
+  }
+
+  /**
+   * Release shared instance (with ref counting)
+   */
+  public static releaseSharedInstance(): void {
+    SessionService.refCount--;
+    console.log(`[SessionService] Ref count: ${SessionService.refCount}`);
+    
+    if (SessionService.refCount <= 0 && SessionService.sharedInstance) {
+      console.log('[SessionService] Destroying shared singleton instance');
+      SessionService.sharedInstance.destroy();
+      SessionService.sharedInstance = null;
+      SessionService.refCount = 0;
+    }
+  }
+
   public initialize(): void {
-    if (this.initialized) return;
+    if (this.initialized) {
+      console.log('[SessionService] Already initialized - skipping');
+      return;
+    }
     
     console.log('[SessionService] Initializing session service');
     
@@ -34,6 +73,12 @@ export class SessionService {
   }
 
   public destroy(): void {
+    if (!this.initialized) {
+      console.log('[SessionService] Already destroyed - skipping');
+      return;
+    }
+    
+    console.log('[SessionService] Destroying session service');
     window.removeEventListener('message', this.handleMessage.bind(this));
     this.initialized = false;
   }

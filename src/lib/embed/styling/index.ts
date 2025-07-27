@@ -14,6 +14,7 @@ import previewCSS from './preview.css';
 import profileMenuCSS from './profile-menu.css';
 import qrDialogCSS from './qr-dialog.css';
 import qrScannerCSS from './qr-scanner.css';
+import qrDataDisplayCSS from './qr-data-display.css';
 import mobileCSS from './mobile.css';
 import lightThemeCSS from './themes/light.css';
 import darkThemeCSS from './themes/dark.css';
@@ -25,16 +26,17 @@ function getCSSContent(): string {
   // Combine all CSS files in the correct order
   // Reset MUST be first to ensure complete isolation
   return [
-    resetCSS,       // 🎯 CRITICAL: Complete CSS reset and isolation - MUST BE FIRST
-    stylesCSS,      // Main CSS entry point
-    sidebarCSS,     // Base sidebar component styles
-    previewCSS,     // Community preview styles
-    profileMenuCSS, // Profile menu styles
-    qrDialogCSS,    // QR code dialog styles
-    qrScannerCSS,   // QR code scanner styles
-    mobileCSS,      // Mobile responsive styles
-    lightThemeCSS,  // Light theme (default)
-    darkThemeCSS    // Dark theme overrides
+    resetCSS,          // 🎯 CRITICAL: Complete CSS reset and isolation - MUST BE FIRST
+    stylesCSS,         // Main CSS entry point
+    sidebarCSS,        // Base sidebar component styles
+    previewCSS,        // Community preview styles
+    profileMenuCSS,    // Profile menu styles
+    qrDialogCSS,       // QR code dialog styles
+    qrScannerCSS,      // QR code scanner styles
+    qrDataDisplayCSS,  // QR code data display styles
+    mobileCSS,         // Mobile responsive styles
+    lightThemeCSS,     // Light theme (default)
+    darkThemeCSS       // Dark theme overrides
   ].join('\n\n');
 }
 

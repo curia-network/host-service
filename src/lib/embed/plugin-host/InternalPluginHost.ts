@@ -1565,13 +1565,22 @@ export class InternalPluginHost {
     try {
       console.log(`[InternalPluginHost] Auto-joining user ${userId} to community ${communityId}`);
       
+      // Get session token for authentication
+      const authContext = this.authService.getAuthContext();
+      if (!authContext?.sessionToken) {
+        console.error(`[InternalPluginHost] No session token available for auto-join`);
+        return false;
+      }
+      
+      // Use enhanced API proxy with correct parameter order
       const response = await this.apiProxy.makeAuthenticatedRequest(
-        `/api/communities/${communityId}/auto-join`, 
-        'POST'
+        `/api/communities/${communityId}/auto-join`,
+        authContext.sessionToken,    // token parameter
+        { method: 'POST' }          // options parameter
       );
       
       if (response.success) {
-        const { isNewMember, status } = response.membership;
+        const { isNewMember, status, visitCount } = response.membership;
         
         if (isNewMember && status === 'active') {
           console.log(`[InternalPluginHost] ✅ User auto-joined community: ${communityId}`);
@@ -1582,7 +1591,7 @@ export class InternalPluginHost {
           console.log(`[InternalPluginHost] ⏳ User membership pending approval: ${communityId}`);
           return false;
         } else {
-          console.log(`[InternalPluginHost] 🔄 User visit updated for community: ${communityId} (visit #${response.membership.visitCount})`);
+          console.log(`[InternalPluginHost] 🔄 User visit updated for community: ${communityId} (visit #${visitCount})`);
           return false;
         }
       }

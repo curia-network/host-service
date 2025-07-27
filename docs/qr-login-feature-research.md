@@ -633,32 +633,444 @@ private async handleShareQR(): Promise<void> {
 3. Implement copy-to-clipboard functionality
 4. Style for mobile/desktop compatibility
 
-### **Week 2: QR Scanner Implementation** 
+### **Week 2: QR Scanner Implementation** 🎯 CURRENT FOCUS
 
-#### **Day 1-3: Camera Integration**
-1. Add QR scanner to mobile/tablet login flow
-2. Implement getUserMedia for camera access
-3. Add QR code detection and parsing
-4. Connect to SessionManager for session import
+#### **Day 1-2: Device Detection & Auth Integration**
+1. ✅ Identified `AuthenticationStep.tsx` as integration point
+2. 🔄 Create device detection utilities (`deviceDetection.ts`)
+3. 🔄 Add "Login with QR Code" option for mobile/tablet only
+4. 🔄 Update auth options array with conditional QR scanner
 
-#### **Day 4-5: Testing & Polish**
-1. Test QR generation across devices
-2. Test QR scanning on different mobile devices
-3. Verify session data transfer accuracy
-4. Error handling and edge cases
+#### **Day 3-4: QR Scanner Component**
+1. 🔄 Install `jsqr` dependency for QR code scanning
+2. 🔄 Create `QRScanner` component with camera integration
+3. 🔄 Implement `getUserMedia` for back camera access
+4. 🔄 Add QR code detection loop with jsQR library
+
+#### **Day 5-6: Session Import & Flow**
+1. 🔄 Enhance `QRCodeGenerator` with parsing methods
+2. 🔄 Implement session import via SessionManager
+3. 🔄 Connect QR scanner to auth flow completion
+4. 🔄 Add error handling for invalid/expired QR codes
+
+#### **Day 7: Testing & Polish**
+1. 🔄 Test QR generation → scanning → import flow
+2. 🔄 Test camera permissions and fallbacks
+3. 🔄 Verify session data integrity after transfer
+4. 🔄 Mobile UX optimization and error states
 
 ### **Week 3: Mobile Profile Drawer**
 
 #### **Day 1-2: Mobile Integration**
-1. Update `MobileProfileDrawer.renderActions()`
-2. Ensure QR dialog works on mobile
-3. Test touch interactions
+1. ✅ Update `MobileProfileDrawer.renderActions()` 
+2. ✅ Ensure QR dialog works on mobile
+3. ✅ Test touch interactions
 
 #### **Day 3-5: Final Testing**
-1. Cross-device QR generation testing
-2. Performance optimization
-3. Accessibility compliance
-4. User acceptance testing
+1. ✅ Cross-device QR generation testing
+2. ✅ Performance optimization  
+3. ✅ Accessibility compliance
+4. ✅ User acceptance testing
+
+---
+
+## 📱 **WEEK 2 TECHNICAL IMPLEMENTATION PLAN**
+
+### **🎯 Target: Embed Route QR Scanner Integration**
+
+The embed route at `/embed` contains the login modal where users choose between ENS, Universal Profile, and Anonymous login. We need to add a fourth option "Login with QR Code" that appears **only on mobile and tablet devices**.
+
+#### **Current Login Flow Analysis**
+1. **Entry Point**: `/embed` page with authentication step
+2. **Component**: `AuthenticationStep.tsx` renders login options as cards
+3. **Options**: ENS, Universal Profile, Anonymous (+ new QR Scanner)
+4. **Flow**: Auth → Profile Preview → Community Selection → Embed Load
+
+#### **Integration Strategy**
+- **Device Detection**: Only show QR option on mobile/tablet devices
+- **Camera Access**: Request rear camera for optimal QR scanning
+- **Session Import**: Parse QR data and import via SessionManager  
+- **Auth Flow**: Continue normal flow after successful import
+
+### **📦 Required Dependencies**
+
+```json
+// package.json additions for Week 2
+{
+  "dependencies": {
+    "qrcode": "^1.5.4",     // ✅ Already installed (Week 1)
+    "jsqr": "^1.4.0"        // 🆕 QR code scanning library
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",  // ✅ Already installed  
+    "@types/jsqr": "^1.4.0"     // 🆕 TypeScript support
+  }
+}
+```
+
+### **🔧 Device Detection Utility**
+
+```typescript
+// host-service/src/lib/embed/utils/deviceDetection.ts
+
+/**
+ * Device detection utilities for QR scanner targeting
+ */
+
+export function detectDeviceType(userAgent?: string): 'desktop' | 'mobile' | 'tablet' {
+  const ua = (userAgent || navigator.userAgent).toLowerCase();
+  
+  // Tablet detection (wider screens with touch)
+  if (/tablet|ipad|playbook|silk/.test(ua)) return 'tablet';
+  
+  // Mobile detection (phones with touch)  
+  if (/mobile|iphone|ipod|android|blackberry|opera mini|opera mobi|skyfire|maemo|windows phone|palm|iemobile|symbian|symbianos|fennec/.test(ua)) return 'mobile';
+  
+  return 'desktop';
+}
+
+export function isMobileOrTablet(): boolean {
+  const deviceType = detectDeviceType();
+  return deviceType === 'mobile' || deviceType === 'tablet';
+}
+
+export function hasCamera(): boolean {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+export function shouldShowQRScanner(): boolean {
+  return isMobileOrTablet() && hasCamera();
+}
+```
+
+### **🎯 AuthenticationStep Integration**
+
+#### **Enhanced Auth Options**
+```typescript
+// src/components/embed/AuthenticationStep.tsx
+
+import { shouldShowQRScanner } from '@/lib/embed/utils/deviceDetection';
+import { QrCode } from 'lucide-react';
+
+const getAuthOptions = (): AuthOption[] => {
+  const allOptions = [
+    {
+      id: 'ens',
+      title: 'ENS Domain',
+      description: 'Connect with your Ethereum Name Service domain',
+      icon: <Image src="/ens.svg" alt="ENS" width={24} height={24} />,
+      gradientClass: 'gradient-blue-cyan',
+      buttonClass: 'btn-gradient-blue-cyan',
+      action: () => handleAuth('ens')
+    },
+    {
+      id: 'universal_profile',
+      title: 'Universal Profile', 
+      description: 'Connect with your LUKSO Universal Profile',
+      icon: <Image src="/customers/lukso.png" alt="LUKSO" width={24} height={24} />,
+      gradientClass: 'gradient-pink-rose',
+      buttonClass: 'btn-gradient-pink-rose',
+      action: () => handleAuth('universal_profile')
+    },
+    // 📱 NEW: QR Scanner option (mobile/tablet only)
+    ...(shouldShowQRScanner() ? [{
+      id: 'qr_scanner',
+      title: 'Login with QR Code',
+      description: 'Scan QR code from another logged-in device',
+      icon: <QrCode className="w-6 h-6" />,
+      gradientClass: 'gradient-violet-purple',
+      buttonClass: 'btn-gradient-violet-purple',
+      action: () => handleAuth('qr_scanner')
+    }] : []),
+    {
+      id: 'anonymous',
+      title: 'Continue as Guest',
+      description: 'Browse without connecting a wallet',
+      icon: <User className="w-6 h-6" />,
+      gradientClass: 'gradient-gray-slate',
+      buttonClass: 'btn-gradient-gray-slate',
+      action: () => handleAuth('anonymous')
+    }
+  ];
+
+  // Filter out anonymous option in secure-auth mode
+  if (config.mode === 'secure-auth') {
+    return allOptions.filter(option => option.id !== 'anonymous');
+  }
+
+  return allOptions;
+};
+```
+
+### **📷 QR Scanner Component Architecture**
+
+```typescript
+// host-service/src/lib/embed/components/qr/QRScanner.tsx
+
+export interface QRScannerProps {
+  onQRScanned: (qrData: string) => void;
+  onClose: () => void;
+  onError: (error: string) => void;
+}
+
+export interface QRScannerState {
+  isScanning: boolean;
+  hasPermission: boolean;
+  error: string | null;
+  instruction: string;
+}
+
+export class QRScanner {
+  private video: HTMLVideoElement | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  private stream: MediaStream | null = null;
+  private scanning: boolean = false;
+  private animationFrame: number | null = null;
+  private props: QRScannerProps;
+  
+  constructor(props: QRScannerProps) {
+    this.props = props;
+  }
+  
+  /**
+   * Initialize camera and start scanning
+   */
+  async startScanning(): Promise<void> {
+    try {
+      // Request camera permission (back camera preferred)
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment', // Back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      
+      // Setup video element
+      if (this.video) {
+        this.video.srcObject = this.stream;
+        await this.video.play();
+        
+        // Start scanning loop
+        this.scanning = true;
+        this.scanFrame();
+      }
+      
+    } catch (error) {
+      this.props.onError(`Camera access failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Scan frame for QR codes using jsQR
+   */
+  private scanFrame(): void {
+    if (!this.scanning || !this.video || !this.canvas) return;
+    
+    const context = this.canvas.getContext('2d');
+    if (!context) return;
+    
+    // Draw video frame to canvas
+    context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    
+    // Get image data
+    const imageData = context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Scan for QR code using jsQR
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (code) {
+      // QR code found!
+      this.stopScanning();
+      this.props.onQRScanned(code.data);
+    } else {
+      // Continue scanning
+      this.animationFrame = requestAnimationFrame(() => this.scanFrame());
+    }
+  }
+  
+  /**
+   * Stop scanning and cleanup resources
+   */
+  stopScanning(): void {
+    this.scanning = false;
+    
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+    
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+  }
+}
+```
+
+### **🔄 Session Import & Data Flow**
+
+#### **Enhanced QRCodeGenerator with Import**
+```typescript
+// Enhanced QRCodeGenerator.ts
+
+export class QRCodeGenerator {
+  /**
+   * Parse and validate scanned QR code data
+   */
+  static parseScannedQR(qrData: string): QRTransferData {
+    try {
+      const parsed = JSON.parse(qrData);
+      
+      // Validate required structure
+      if (!this.isValidTransferData(parsed)) {
+        throw new Error('Invalid QR code format - not a session transfer');
+      }
+      
+      // Check if data is not expired (10 minute window)
+      if (parsed.timestamp) {
+        const age = Date.now() - parsed.timestamp;
+        const maxAge = 10 * 60 * 1000; // 10 minutes
+        
+        if (age > maxAge) {
+          throw new Error('QR code has expired - please generate a new one');
+        }
+      }
+      
+      return parsed;
+    } catch (error) {
+      throw new Error(`QR parsing failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Import sessions from scanned QR data into SessionManager
+   */
+  static async importSessions(transferData: QRTransferData): Promise<SessionData[]> {
+    const importedSessions: SessionData[] = [];
+    
+    for (const sessionData of transferData.sessions) {
+      try {
+        // Convert transfer format back to SessionData
+        const session: SessionData = {
+          sessionToken: sessionData.sessionToken,
+          userId: sessionData.userId,
+          identityType: sessionData.identityType,
+          walletAddress: sessionData.walletAddress,
+          ensName: sessionData.ensName,
+          upAddress: sessionData.upAddress,
+          name: sessionData.name,
+          profileImageUrl: sessionData.profileImageUrl,
+          expiresAt: new Date(sessionData.expiresAt),
+          lastAccessedAt: new Date(),
+          isActive: true
+        };
+        
+        // Add to SessionManager
+        await sessionManager.addSession(session);
+        importedSessions.push(session);
+        
+        console.log('[QRScanner] Imported session:', session.userId);
+        
+      } catch (error) {
+        console.warn('[QRScanner] Failed to import session:', sessionData.userId, error);
+      }
+    }
+    
+    if (importedSessions.length === 0) {
+      throw new Error('No valid sessions could be imported');
+    }
+    
+    return importedSessions;
+  }
+}
+```
+
+#### **Authentication Flow Integration**
+```typescript
+// AuthenticationStep.tsx - QR scan handling
+
+const [qrScannerActive, setQrScannerActive] = useState<boolean>(false);
+const [qrScannerError, setQrScannerError] = useState<string | null>(null);
+
+const handleAuth = useCallback(async (type: string) => {
+  setIsAuthenticating(type);
+  
+  if (type === 'qr_scanner') {
+    // Show QR scanner component
+    setQrScannerActive(true);
+    setIsAuthenticating(null); // Reset loading state
+    return;
+  }
+  
+  // ... existing auth logic for ENS/UP/Anonymous
+}, [handleConnectionSuccess]);
+
+const handleQRScanned = useCallback(async (qrData: string) => {
+  try {
+    setIsAuthenticating('qr_scanner');
+    console.log('[AuthenticationStep] Processing scanned QR data...');
+    
+    // 1. Parse QR data
+    const transferData = QRCodeGenerator.parseScannedQR(qrData);
+    
+    // 2. Import sessions into SessionManager
+    const importedSessions = await QRCodeGenerator.importSessions(transferData);
+    
+    // 3. Get the first imported session as primary
+    const primarySession = importedSessions[0];
+    
+    // 4. Set as active session
+    await sessionManager.setActiveSession(primarySession.sessionToken);
+    
+    // 5. Create ProfileData for auth flow continuation
+    const profileData: ProfileData = {
+      type: primarySession.identityType,
+      address: primarySession.walletAddress || primarySession.upAddress,
+      name: primarySession.name,
+      domain: primarySession.ensName,
+      avatar: primarySession.profileImageUrl,
+      verificationLevel: primarySession.identityType === 'anonymous' ? 'unverified' : 'verified',
+      sessionToken: primarySession.sessionToken,
+      userId: primarySession.userId
+    };
+    
+    // 6. Close QR scanner and continue auth flow
+    setQrScannerActive(false);
+    setQrScannerError(null);
+    handleConnectionSuccess(profileData);
+    
+    console.log(`[AuthenticationStep] ✅ QR login successful - imported ${importedSessions.length} sessions`);
+    
+  } catch (error) {
+    console.error('[AuthenticationStep] QR import failed:', error);
+    setQrScannerError(error.message);
+    setIsAuthenticating(null);
+  }
+}, [handleConnectionSuccess]);
+
+const handleQRScannerClose = useCallback(() => {
+  setQrScannerActive(false);
+  setQrScannerError(null);
+  setIsAuthenticating(null);
+}, []);
+```
+
+### **🎨 UX & Error Handling**
+
+#### **Error States & Fallbacks**
+- **Camera Permission Denied**: Show manual input option or retry
+- **No QR Code Detected**: Scanning animation with 30s timeout
+- **Invalid QR Data**: Clear error message + "Generate new QR" suggestion
+- **Expired Sessions**: Notify user to generate fresh QR code
+- **Network Errors**: Offline handling with retry mechanism
+
+#### **Success Flow**
+1. **Tap "Login with QR Code"** → Camera permission request
+2. **Camera Active** → Scanning overlay + "Point at QR code" instruction
+3. **QR Detected** → Success animation + "Importing sessions..." 
+4. **Import Complete** → Continue to profile preview or community selection
+5. **Multi-Session Import** → Show "Imported X accounts" confirmation
 
 ---
 

@@ -21,7 +21,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Image from 'next/image';
 import { sessionManager } from '@/lib/SessionManager';
 import { shouldShowQRScanner } from '@/lib/embed/utils/deviceDetection';
-import { QRScanner, QRDataDisplay, type QRTransferData } from '@/lib/embed/components/qr';
+import { QRScanner, QRCodeGenerator, type QRTransferData } from '@/lib/embed/components/qr';
 
 // Separate component for Universal Profile connection
 const UniversalProfileConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSuccess }) => {
@@ -108,19 +108,288 @@ const EthereumConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSu
   );
 };
 
+// Separate component for QR Scanner connection flow
+const QRScannerConnection: React.FC<{ onSuccess: (data: any) => void }> = ({ onSuccess }) => {
+  type QRScreenType = 'instructions' | 'scanning' | 'review';
+  
+  const [currentScreen, setCurrentScreen] = React.useState<QRScreenType>('instructions');
+  const [scannedData, setScannedData] = React.useState<string | null>(null);
+  const [parsedData, setParsedData] = React.useState<QRTransferData | null>(null);
+  const [scanError, setScanError] = React.useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = React.useState<boolean>(false);
+
+  // Handle QR code scanned
+  const handleQRScanned = React.useCallback((qrData: string) => {
+    try {
+      console.log('[QRScannerConnection] QR scanned:', qrData.substring(0, 100) + '...');
+      
+      // Parse QR data
+      const transferData = QRCodeGenerator.parseScannedQR(qrData);
+      
+      setScannedData(qrData);
+      setParsedData(transferData);
+      setCurrentScreen('review');
+      setScanError(null);
+      
+    } catch (error) {
+      console.error('[QRScannerConnection] QR parse failed:', error);
+      setScanError(error instanceof Error ? error.message : 'Invalid QR code');
+    }
+  }, []);
+
+  // Handle camera error
+  const handleScanError = React.useCallback((error: string) => {
+    console.error('[QRScannerConnection] Camera error:', error);
+    setScanError(error);
+  }, []);
+
+  // Handle session import
+  const handleImport = React.useCallback(async () => {
+    if (!parsedData) return;
+    
+    try {
+      setIsProcessing(true);
+      console.log('[QRScannerConnection] Importing', parsedData.sessions.length, 'sessions');
+      
+      // TODO: Implement actual session import via SessionManager
+      // For now, just simulate success with first session
+      const firstSession = parsedData.sessions[0];
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock successful import - call onSuccess with profile data
+      onSuccess({
+        type: firstSession.identityType,
+        name: firstSession.name || firstSession.ensName || 'Imported User',
+        userId: firstSession.userId,
+        sessionToken: firstSession.sessionToken,
+        walletAddress: firstSession.walletAddress,
+        ensName: firstSession.ensName,
+        upAddress: firstSession.upAddress,
+        profileImageUrl: firstSession.profileImageUrl,
+        verificationLevel: 'verified' as const
+      });
+      
+    } catch (error) {
+      console.error('[QRScannerConnection] Import failed:', error);
+      setScanError(error instanceof Error ? error.message : 'Import failed');
+      setIsProcessing(false);
+    }
+  }, [parsedData, onSuccess]);
+
+  // Reset to instructions
+  const handleBack = React.useCallback(() => {
+    setCurrentScreen('instructions');
+    setScannedData(null);
+    setParsedData(null);
+    setScanError(null);
+    setIsProcessing(false);
+  }, []);
+
+  // Screen 1: Instructions
+  if (currentScreen === 'instructions') {
+    return (
+      <div className="text-center py-6">
+        <div className="mb-6">
+          <QrCode className="w-16 h-16 mx-auto text-violet-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">How to get your QR Code:</h3>
+          <div className="text-left max-w-sm mx-auto space-y-2 text-sm text-muted-foreground mb-6">
+            <div className="flex items-center gap-2">
+              <span className="bg-violet-100 text-violet-700 w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium">1</span>
+              Open Curia on another device
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="bg-violet-100 text-violet-700 w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium">2</span>
+              Go to your profile menu
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="bg-violet-100 text-violet-700 w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium">3</span>
+              Click "Share Login QR"
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm">
+            <div className="flex items-center gap-2 text-blue-700 mb-2">
+              <Lock className="w-4 h-4" />
+              <span className="font-medium">When you tap "Scan QR Code":</span>
+            </div>
+            <ul className="text-blue-600 space-y-1 text-left">
+              <li>• Your phone will ask for camera permission</li>
+              <li>• Point camera at the QR code</li>
+              <li>• We'll show you what we found</li>
+            </ul>
+          </div>
+        </div>
+
+        {scanError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+            {scanError}
+          </div>
+        )}
+
+        <Button 
+          onClick={() => setCurrentScreen('scanning')}
+          className="bg-violet-600 hover:bg-violet-700 text-white"
+          size="lg"
+        >
+          <QrCode className="w-4 h-4 mr-2" />
+          Scan QR Code
+        </Button>
+      </div>
+    );
+  }
+
+  // Screen 2: Scanning
+  if (currentScreen === 'scanning') {
+    return (
+      <div className="py-6">
+        <div className="text-center mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleBack}
+            className="mb-4"
+          >
+            ← Back
+          </Button>
+        </div>
+        
+        <QRScanner
+          isActive={true}
+          onQRScanned={handleQRScanned}
+          onClose={handleBack}
+          onError={handleScanError}
+        />
+      </div>
+    );
+  }
+
+  // Screen 3: Review
+  if (currentScreen === 'review' && parsedData) {
+    return (
+      <div className="py-6">
+        <div className="text-center mb-6">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCurrentScreen('scanning')}
+            className="mb-4"
+          >
+            ← Back to Scanner
+          </Button>
+          
+          <div className="text-green-600 mb-4">
+            <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-2">
+              ✅
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">QR Code Scanned Successfully</h3>
+            <p className="text-sm text-muted-foreground">
+              Found <strong>{parsedData.sessions.length}</strong> session(s) to transfer
+            </p>
+          </div>
+        </div>
+
+        {/* Session List */}
+        <div className="space-y-3 mb-6">
+          <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+            Sessions to Import:
+          </h4>
+          {parsedData.sessions.map((session, index) => (
+            <div key={index} className="flex items-center gap-3 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-violet-100 flex items-center justify-center">
+                {session.profileImageUrl ? (
+                  <img src={session.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-violet-600 font-medium">
+                    {(session.name || session.userId || '?').charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">
+                  {session.name || session.ensName || 'Unnamed Account'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {session.identityType === 'ens' && '🏷️ ENS Domain'}
+                  {session.identityType === 'universal_profile' && '🔗 Universal Profile'}
+                  {session.identityType === 'anonymous' && '👤 Guest Account'}
+                </div>
+                {session.walletAddress && (
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {session.walletAddress.substring(0, 8)}...{session.walletAddress.substring(-6)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Metadata */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-6 text-xs">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-muted-foreground">Transfer Time:</span>
+            <span className="font-medium">{new Date(parsedData.timestamp).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-muted-foreground">Version:</span>
+            <span className="font-medium">{parsedData.version}</span>
+          </div>
+          {parsedData.sourceDevice && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Source Device:</span>
+              <span className="font-medium">{parsedData.sourceDevice}</span>
+            </div>
+          )}
+        </div>
+
+        {scanError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+            {scanError}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleBack}
+            disabled={isProcessing}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleImport}
+            disabled={isProcessing}
+            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white"
+          >
+            {isProcessing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Importing...
+              </>
+            ) : (
+              'Import Sessions'
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({ 
   onAuthenticated, 
   config 
 }) => {
   const [isAuthenticating, setIsAuthenticating] = useState<string | null>(null);
-  const [connectionType, setConnectionType] = useState<'ens' | 'universal_profile' | null>(null);
+  const [connectionType, setConnectionType] = useState<'ens' | 'universal_profile' | 'qr_scanner' | null>(null);
   
-  // QR Scanner state
-  const [qrScannerActive, setQrScannerActive] = useState<boolean>(false);
-  const [qrScannerError, setQrScannerError] = useState<string | null>(null);
-  const [qrScannedData, setQrScannedData] = useState<string | null>(null);
-  const [qrDataDisplayActive, setQrDataDisplayActive] = useState<boolean>(false);
-  const [qrProcessing, setQrProcessing] = useState<boolean>(false);
+
 
   const handleConnectionSuccess = useCallback((profileData: any) => {
     console.log('[AuthenticationStep] Connection successful:', profileData);
@@ -133,10 +402,9 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
     setIsAuthenticating(type);
     
     if (type === 'qr_scanner') {
-      // Show QR scanner component
-      setQrScannerActive(true);
-      setQrScannerError(null);
-      setIsAuthenticating(null); // Reset loading state
+      // Show QR scanner connection flow (like ENS/UP)
+      setConnectionType('qr_scanner');
+      setIsAuthenticating(null);
       return;
     } else if (type === 'anonymous') {
       // Handle anonymous auth directly with our backend
@@ -192,62 +460,7 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
     setConnectionType(null);
   }, []);
 
-  // QR Scanner handlers
-  const handleQRScanned = useCallback(async (qrData: string) => {
-    try {
-      console.log('[AuthenticationStep] QR data scanned:', qrData.substring(0, 100) + '...');
-      
-      // Store scanned data and show display modal
-      setQrScannedData(qrData);
-      setQrScannerActive(false);
-      setQrDataDisplayActive(true);
-      setQrScannerError(null);
-      
-    } catch (error) {
-      console.error('[AuthenticationStep] QR scan processing failed:', error);
-      setQrScannerError(error instanceof Error ? error.message : 'QR scanning failed');
-    }
-  }, []);
 
-  const handleQRScannerClose = useCallback(() => {
-    setQrScannerActive(false);
-    setQrScannerError(null);
-    setIsAuthenticating(null);
-  }, []);
-
-  const handleQRDataImport = useCallback(async (transferData: QRTransferData) => {
-    try {
-      setQrProcessing(true);
-      console.log('[AuthenticationStep] User approved import of', transferData.sessions.length, 'sessions');
-      
-      // TODO: This is where we'll implement the actual SessionManager import
-      // For now, just show that we parsed the data successfully
-      console.log('[AuthenticationStep] Transfer data:', transferData);
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For now, just close the modal and show success
-      setQrDataDisplayActive(false);
-      setQrScannedData(null);
-      setQrProcessing(false);
-      
-      // TODO: Replace with actual session import and auth flow continuation
-      console.log('[AuthenticationStep] ✅ QR import complete (placeholder)');
-      
-    } catch (error) {
-      console.error('[AuthenticationStep] QR import failed:', error);
-      setQrScannerError(error instanceof Error ? error.message : 'Import failed');
-      setQrProcessing(false);
-    }
-  }, []);
-
-  const handleQRDataCancel = useCallback(() => {
-    setQrDataDisplayActive(false);
-    setQrScannedData(null);
-    setQrProcessing(false);
-    setIsAuthenticating(null);
-  }, []);
 
   const getAuthOptions = (): AuthOption[] => {
     const allOptions = [
@@ -341,6 +554,24 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
     );
   }
 
+  if (connectionType === 'qr_scanner') {
+    return (
+      <div className="embed-step">
+        <Card className="embed-card embed-card--md">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-xl">Login with QR Code</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleBack} className="mt-2">
+              ← Back to Options
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <QRScannerConnection onSuccess={handleConnectionSuccess} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Show beautiful wallet selection cards
   return (
     <div className="embed-step">
@@ -407,25 +638,7 @@ export const AuthenticationStep: React.FC<AuthenticationStepProps> = ({
         </CardContent>
       </Card>
 
-      {/* QR Scanner */}
-      {qrScannerActive && (
-        <QRScanner
-          isActive={qrScannerActive}
-          onQRScanned={handleQRScanned}
-          onClose={handleQRScannerClose}
-          onError={(error) => setQrScannerError(error)}
-        />
-      )}
 
-      {/* QR Data Display */}
-      {qrDataDisplayActive && qrScannedData && (
-        <QRDataDisplay
-          qrData={qrScannedData}
-          onImport={handleQRDataImport}
-          onCancel={handleQRDataCancel}
-          isProcessing={qrProcessing}
-        />
-      )}
     </div>
   );
 }; 

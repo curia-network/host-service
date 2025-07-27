@@ -1584,8 +1584,8 @@ export class InternalPluginHost {
         { method: 'POST' }          // options parameter
       );
       
-      if (response.success && response.data?.membership) {
-        const { isNewMember, status, visitCount } = response.data.membership;
+      if (response.success) {
+        const { isNewMember, status, visitCount } = response.membership;
         
         // 🚀 FIX: Always refresh sidebar after successful auto-join
         // This ensures new users see their selected community immediately

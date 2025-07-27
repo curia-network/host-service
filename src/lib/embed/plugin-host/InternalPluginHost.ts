@@ -1582,10 +1582,13 @@ export class InternalPluginHost {
       if (response.success) {
         const { isNewMember, status, visitCount } = response.membership;
         
+        // 🚀 FIX: Always refresh sidebar after successful auto-join
+        // This ensures new users see their selected community immediately
+        console.log(`[InternalPluginHost] 🔄 Refreshing sidebar after auto-join response`);
+        await this.refreshCommunitySidebar();
+        
         if (isNewMember && status === 'active') {
           console.log(`[InternalPluginHost] ✅ User auto-joined community: ${communityId}`);
-          // Refresh sidebar to show new community
-          await this.refreshCommunitySidebar();
           return true;
         } else if (status === 'pending') {
           console.log(`[InternalPluginHost] ⏳ User membership pending approval: ${communityId}`);

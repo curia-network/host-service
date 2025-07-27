@@ -54,6 +54,63 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   });
 
   // ============================================================================
+  // QR CODE SCANNING (moved before camera management to fix declaration order)
+  // ============================================================================
+
+  const scanFrame = useCallback(() => {
+    if (!state.isScanning || !videoRef.current || !canvasRef.current) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    // iOS Safari compatibility: Check multiple video ready states
+    const isVideoReady = video.readyState >= video.HAVE_CURRENT_DATA && 
+                         video.videoWidth > 0 && 
+                         video.videoHeight > 0;
+
+    if (!context || !isVideoReady) {
+      // Continue scanning
+      animationRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Get image data for QR scanning
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+    // Scan for QR code using jsQR
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert' // Performance optimization
+    });
+
+    if (qrCode) {
+      console.log('[QRScanner] QR code detected:', qrCode.data);
+      
+      // Stop scanning and report success
+      setState(prev => ({ ...prev, isScanning: false }));
+      onQRScanned(qrCode.data);
+      return;
+    }
+
+    // Continue scanning
+    animationRef.current = requestAnimationFrame(scanFrame);
+  }, [state.isScanning, onQRScanned]);
+
+  const startScanning = useCallback(() => {
+    setState(prev => ({ ...prev, isScanning: true }));
+    scanFrame();
+  }, [scanFrame]);
+
+  // ============================================================================
   // CAMERA MANAGEMENT
   // ============================================================================
 
@@ -203,68 +260,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     }));
   }, []);
 
-  // ============================================================================
-  // QR CODE SCANNING
-  // ============================================================================
 
-  const startScanning = useCallback(() => {
-    setState(prev => ({ ...prev, isScanning: true }));
-    scanFrame();
-  }, []);
-
-  const scanFrame = useCallback(() => {
-    if (!state.isScanning || !videoRef.current || !canvasRef.current) {
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    // iOS Safari compatibility: Check multiple video ready states
-    const isVideoReady = video.readyState >= video.HAVE_CURRENT_DATA && 
-                         video.videoWidth > 0 && 
-                         video.videoHeight > 0;
-
-    if (!context || !isVideoReady) {
-      // Continue scanning
-      animationRef.current = requestAnimationFrame(scanFrame);
-      return;
-    }
-
-    // Set canvas size to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw current video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Get image data for QR scanning
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-    // Scan for QR code using jsQR
-    const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert' // Performance optimization
-    });
-
-    if (qrCode) {
-      // QR code found!
-      console.log('[QRScanner] QR code detected:', qrCode.data.substring(0, 100) + '...');
-      
-      setState(prev => ({
-        ...prev,
-        isScanning: false,
-        instruction: 'QR code detected! Processing...'
-      }));
-
-      // Stop scanning and notify parent
-      stopCamera();
-      onQRScanned(qrCode.data);
-    } else {
-      // Continue scanning
-      animationRef.current = requestAnimationFrame(scanFrame);
-    }
-  }, [state.isScanning, onQRScanned, stopCamera]);
 
   // ============================================================================
   // LIFECYCLE

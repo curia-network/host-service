@@ -44,7 +44,7 @@ export function isIOSSafari(): boolean {
  */
 export function isIOSPWA(): boolean {
   return isIOS() && 
-         window.navigator.standalone === true && 
+         (window.navigator as any).standalone === true && 
          !window.matchMedia('(display-mode: browser)').matches;
 }
 
@@ -54,7 +54,7 @@ export function isIOSPWA(): boolean {
  * @returns True if device is likely affected by the camera bug
  */
 export function hasIOSCameraBug(): boolean {
-  return isIOSPWA() || (isIOSSafari() && window.navigator.standalone === true);
+  return isIOSPWA() || (isIOSSafari() && (window.navigator as any).standalone === true);
 }
 
 /**

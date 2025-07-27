@@ -965,6 +965,10 @@ export class InternalPluginHost {
       return;
     }
 
+    // 🚀 FIX: Always auto-join when switching to community (even if iframe exists)
+    console.log(`[MULTI-IFRAME] Auto-joining user to community: ${communityId}`);
+    await this.autoJoinCommunityOnVisit(communityId, authContext.userId);
+
     // Get or create iframe for target community
     let targetIframe = this.communityIframes.get(communityId);
     
@@ -1017,9 +1021,6 @@ export class InternalPluginHost {
    */
   private async createCommunityIframe(communityId: string, authContext: InternalAuthContext): Promise<HTMLIFrameElement> {
     console.log(`[MULTI-IFRAME] Creating iframe for community: ${communityId}`);
-
-    // 🚀 AUTO-JOIN: Make user a member when they visit a community
-    await this.autoJoinCommunityOnVisit(communityId, authContext.userId);
 
     // Get iframe container (same as in switchToForum)
     const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
@@ -1583,7 +1584,7 @@ export class InternalPluginHost {
         { method: 'POST' }          // options parameter
       );
       
-      if (response.success && response.data?.success) {
+      if (response.success && response.data?.membership) {
         const { isNewMember, status, visitCount } = response.data.membership;
         
         // 🚀 FIX: Always refresh sidebar after successful auto-join

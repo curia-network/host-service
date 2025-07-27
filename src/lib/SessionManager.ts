@@ -284,6 +284,9 @@ export class SessionManager {
 
       console.log('[SessionManager] 🔄 Valid sessions after filtering:', validSessions.length);
 
+      // Track the original active session token to detect actual changes
+      const originalActiveToken = this.storage.activeSessionToken;
+
       // Update storage with authoritative session data
       this.storage.activeSessions = validSessions;
       this.storage.lastSyncedAt = Date.now();
@@ -300,7 +303,15 @@ export class SessionManager {
       }
 
       this.saveToStorage();
-      this.notifyListeners();
+
+      // 🚀 FIX: Only notify listeners if the active session token actually changed
+      // This prevents background sync from triggering unwanted session switch reloads
+      if (this.storage.activeSessionToken !== originalActiveToken) {
+        console.log('[SessionManager] 🔄 Active session token changed during bulk update, notifying listeners');
+        this.notifyListeners();
+      } else {
+        console.log('[SessionManager] 🔄 Bulk update completed, no active session change detected');
+      }
 
       console.log('[SessionManager] ✅ Bulk update completed:', validSessions.length, 'sessions, active:', this.storage.activeSessionToken);
     } catch (error) {

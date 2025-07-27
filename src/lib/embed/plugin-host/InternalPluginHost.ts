@@ -1584,11 +1584,16 @@ export class InternalPluginHost {
         { method: 'POST' }          // options parameter
       );
       
-      // 🐛 DEBUG: Log production response format
-      console.log(`[InternalPluginHost] 🐛 PRODUCTION Auto-join response:`, JSON.stringify(response, null, 2));
-      
       if (response.success) {
-        const { isNewMember, status, visitCount } = response.membership;
+        // 🔧 Handle both response formats: production (wrapped) vs localhost (unwrapped)
+        const membership = response.data?.membership || response.membership;
+        
+        if (!membership) {
+          console.error(`[InternalPluginHost] Auto-join response missing membership data:`, response);
+          return false;
+        }
+        
+        const { isNewMember, status, visitCount } = membership;
         
         // 🚀 FIX: Always refresh sidebar after successful auto-join
         // This ensures new users see their selected community immediately

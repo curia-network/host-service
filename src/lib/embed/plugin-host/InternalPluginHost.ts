@@ -710,8 +710,8 @@ export class InternalPluginHost {
       embedContainer: this.embedContainer || undefined // 🎯 Pass embed container for mobile boundary respect (null → undefined)
     });
 
-    // Start initial 5-second polling to catch immediate community joins
-    this.startCommunityPolling('initial');
+    // 🚀 REMOVED: Start initial 5-second polling to catch immediate community joins
+    // this.startCommunityPolling('initial'); // REPLACED by auto-join on visit
   }
 
   /**
@@ -964,7 +964,7 @@ export class InternalPluginHost {
     
     if (!targetIframe) {
       console.log(`[MULTI-IFRAME] Creating new iframe for community: ${communityId}`);
-      targetIframe = this.createCommunityIframe(communityId, authContext);
+      targetIframe = await this.createCommunityIframe(communityId, authContext);
       this.communityIframes.set(communityId, targetIframe);
       console.log(`[MULTI-IFRAME] New iframe created and stored for community: ${communityId}`);
     } else {
@@ -1009,8 +1009,11 @@ export class InternalPluginHost {
    * Create a new forum iframe for a specific community
    * Based on IframeManager.createForumIframe logic but for community switching
    */
-  private createCommunityIframe(communityId: string, authContext: InternalAuthContext): HTMLIFrameElement {
+  private async createCommunityIframe(communityId: string, authContext: InternalAuthContext): Promise<HTMLIFrameElement> {
     console.log(`[MULTI-IFRAME] Creating iframe for community: ${communityId}`);
+
+    // 🚀 AUTO-JOIN: Make user a member when they visit a community
+    await this.autoJoinCommunityOnVisit(communityId, authContext.userId);
 
     // Get iframe container (same as in switchToForum)
     const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
@@ -1171,8 +1174,8 @@ export class InternalPluginHost {
       // Use existing switchToCommunity logic!
       await this.switchToCommunity(communityId);
 
-      // 🔄 START POLLING: User will join community during iframe load, so start polling to detect it
-      this.startCommunityPolling('community-switch');
+      // 🚀 REMOVED: START POLLING: User will join community during iframe load, so start polling to detect it
+      // this.startCommunityPolling('community-switch'); // REPLACED by auto-join on visit
 
       const result = {
         switched: true,
@@ -1316,8 +1319,8 @@ export class InternalPluginHost {
       // 2. Switch to selected community using existing infrastructure
       await this.switchToCommunity(communityId);
       
-      // 3. 🔄 START POLLING: User will join community during iframe load, so start polling to detect it
-      this.startCommunityPolling('community-switch');
+      // 3. 🚀 REMOVED: START POLLING: User will join community during iframe load, so start polling to detect it
+      // this.startCommunityPolling('community-switch'); // REPLACED by auto-join on visit
       
       console.log('[InternalPluginHost] Discovery-to-community switch completed');
     } catch (error) {
@@ -1552,6 +1555,44 @@ export class InternalPluginHost {
     this.initializeAuthPhase();
     
     console.log('[InternalPluginHost] Reset to initial state complete');
+  }
+
+  /**
+   * Auto-join user to community on visit (UPSERT pattern)
+   * Eliminates need for polling by creating membership immediately when user visits community
+   */
+  private async autoJoinCommunityOnVisit(communityId: string, userId: string): Promise<boolean> {
+    try {
+      console.log(`[InternalPluginHost] Auto-joining user ${userId} to community ${communityId}`);
+      
+      const response = await this.apiProxy.makeAuthenticatedRequest(
+        `/api/communities/${communityId}/auto-join`, 
+        'POST'
+      );
+      
+      if (response.success) {
+        const { isNewMember, status } = response.membership;
+        
+        if (isNewMember && status === 'active') {
+          console.log(`[InternalPluginHost] ✅ User auto-joined community: ${communityId}`);
+          // Refresh sidebar to show new community
+          await this.refreshCommunitySidebar();
+          return true;
+        } else if (status === 'pending') {
+          console.log(`[InternalPluginHost] ⏳ User membership pending approval: ${communityId}`);
+          return false;
+        } else {
+          console.log(`[InternalPluginHost] 🔄 User visit updated for community: ${communityId} (visit #${response.membership.visitCount})`);
+          return false;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`[InternalPluginHost] Auto-join failed for ${communityId}:`, error);
+      // Don't throw - iframe should still load even if auto-join fails
+      return false;
+    }
   }
 
   /**

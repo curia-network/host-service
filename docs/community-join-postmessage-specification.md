@@ -1,5 +1,144 @@
 # Bidirectional PostMessage Communication Specification
 
+## 🔍 **Current System Analysis & Implementation Findings**
+
+### **🚨 Performance Issue: Community Polling**
+
+**Location**: `host-service/src/lib/embed/plugin-host/InternalPluginHost.ts:712-746`
+
+**Current Implementation**:
+```typescript
+private startCommunityPolling(reason: 'initial' | 'community-switch'): void {
+  console.log(`[InternalPluginHost] Starting 5-second community polling (${reason})`);
+  
+  // Stop any existing polling first
+  this.stopCommunityPolling();
+  
+  let pollCount = 0;
+  const maxPolls = 5;
+  
+  this.communityPollingTimer = setInterval(async () => {
+    pollCount++;
+    console.log(`[InternalPluginHost] Community refresh poll ${pollCount}/${maxPolls} (${reason})`);
+    
+    try {
+      await this.refreshCommunitySidebar(); // Makes API call to fetchUserCommunities()
+    } catch (error) {
+      console.error('[InternalPluginHost] Failed to refresh communities during polling:', error);
+    }
+    
+    // Stop polling after 5 iterations
+    if (pollCount >= maxPolls) {
+      console.log(`[InternalPluginHost] Polling completed (${reason}), switching to event-driven updates`);
+      this.stopCommunityPolling();
+    }
+  }, 1000); // Poll every second for 5 seconds
+}
+```
+
+**Triggered By**:
+1. `initializeCommunityNavigation()` - Every embed load (line 715)
+2. `handleCommunitySwitchRequest()` - Every community switch (line 1182)  
+3. `handleCommunityDiscoveryComplete()` - After discovery modal (line 1320)
+
+**API Impact**: 
+- **5 API calls per embed load** (`authService.fetchUserCommunities()`)
+- **5 API calls per community switch**
+- **5 API calls per discovery completion**
+- **= 25+ API calls** for typical user journey
+
+**🔧 Solution**: Replace with event-driven postMessage from Curia forum on successful joins.
+
+---
+
+### **🎯 Join Flow Analysis**
+
+**Current Join Implementation Status**: **INCOMPLETE** ❌
+
+**Location**: `host-service/src/components/embed/CommunitySelectionStep.tsx:153-184`
+
+```typescript
+const handleJoinCommunity = async (communityId: string) => {
+  if (!communityId) return;
+  
+  setIsJoining(true);
+  
+  try {
+    // TODO: Join community API call  ⚠️ NOT IMPLEMENTED
+    console.log(`[Embed] Joining community: ${communityId}`);
+    
+    // Find the full community object by ID
+    const allCommunities = [...userCommunities, ...availableCommunities];
+    const selectedCommunity = allCommunities.find(c => c.id === communityId);
+    console.log(`[Embed] Found community object:`, selectedCommunity);
+    
+    // Simulate API call  ⚠️ NO ACTUAL JOIN
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Pass both the community ID and the full community object to the parent
+    onCommunitySelected(communityId, selectedCommunity);
+  } catch (error) {
+    console.error('[Embed] Error joining community:', error);
+    setIsJoining(false);
+  }
+};
+```
+
+**Missing Pieces**:
+1. **Community Join API Endpoint** - No `/api/communities/{id}/join` exists
+2. **Database Insert** - No `INSERT INTO user_communities` for joins
+3. **Actual Membership Creation** - Only simulated
+
+---
+
+### **📡 PostMessage Implementation Locations**
+
+#### **Host-Service Side (Parent Frame)**
+
+**Add PostMessage Listener**: `host-service/src/lib/embed/plugin-host/InternalPluginHost.ts`
+
+**Integration Point**: `MessageRouter.handleMessage()` method (line ~215)
+- Already handles `curia-auth-complete`, `curia-auth-session-switch` 
+- **Add**: `curia-community-joined` handler
+
+**Target Function**: `refreshCommunitySidebar()` (line 756)
+- Replace polling calls to this function
+- Trigger immediately on postMessage receipt
+
+#### **Curia Forum Side (iframe)**
+
+**Add PostMessage Sender**: `../curia/src/components/ApiProxyServerComponent.tsx`
+
+**Integration Point**: After `ApiProxyServer` initialization (line 19)
+- Already handles iframe-to-parent communication
+- **Add**: Community join success handler
+
+**Alternative Location**: Create dedicated `CommunityEventNotifier.tsx` component
+
+---
+
+### **📋 Database Schema Analysis**
+
+**Community Membership Table**: `user_communities`
+```sql
+-- Structure (inferred from host-service API queries)
+CREATE TABLE user_communities (
+  user_id VARCHAR,
+  community_id UUID,
+  role VARCHAR DEFAULT 'member',  -- 'owner', 'admin', 'member'
+  status VARCHAR DEFAULT 'active', -- 'active', 'inactive', 'pending'
+  first_visited_at TIMESTAMP,
+  last_visited_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Required API Endpoint**: `POST /api/communities/{communityId}/join`
+- Insert into `user_communities` table
+- Return updated community object with `isMember: true`
+
+---
+
 ## 🎯 **Objective**
 Establish a comprehensive 2-way communication protocol between the host-service embed and Curia forum iframe to:
 1. Replace inefficient polling with event-driven community join notifications
@@ -452,17 +591,172 @@ async function executeNavigateToPost(postId?: string): Promise<void> {
 
 ---
 
-## 🚀 **Implementation Phases**
+## 🚀 **Step-by-Step Implementation Roadmap**
 
-### **Phase 1: Community Join Events (Critical)**
-Implement `curia-community-joined` notifications to eliminate the 25 API calls per embed load causing performance issues.
+### **Phase 1: Foundation - Community Join API (Required First)**
 
-### **Phase 2: Basic Command System**
-Implement `curia-command` and `curia-command-response` protocol with the `open-search` command as the first example.
+#### **Step 1.1: Create Community Join API Endpoint**
+**File**: `host-service/src/app/api/communities/[communityId]/join/route.ts` (new file)
 
-### **Phase 3: Extended Commands**
-Add additional commands like `focus-composer`, `navigate-to-post`, etc. based on embed integration needs.
+```typescript
+export async function POST(request: NextRequest, { params }: { params: { communityId: string } }) {
+  // 1. Validate authentication (session token)
+  // 2. Check if user is already a member
+  // 3. Insert into user_communities table
+  // 4. Return updated community object with isMember: true
+}
+```
+
+#### **Step 1.2: Implement Join Logic in CommunitySelectionStep**
+**File**: `host-service/src/components/embed/CommunitySelectionStep.tsx:153-184`
+
+Replace the TODO comment with actual API call:
+```typescript
+const handleJoinCommunity = async (communityId: string) => {
+  // Replace simulation with real API call to new join endpoint
+  const response = await fetch(`/api/communities/${communityId}/join`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${sessionToken}` }
+  });
+  
+  if (response.ok) {
+    // Send postMessage notification to parent on success
+    window.parent.postMessage({
+      type: 'curia-community-joined',
+      data: { communityId, community: joinResult }
+    }, '*');
+  }
+};
+```
+
+### **Phase 2: PostMessage Communication**
+
+#### **Step 2.1: Add PostMessage Listener (Host-Service)**
+**File**: `host-service/src/lib/embed/services/messaging/MessageRouter.ts`
+
+Add to `handleMessage()` method:
+```typescript
+case 'curia-community-joined':
+  await this.handleCommunityJoined(message.data);
+  break;
+
+private async handleCommunityJoined(data: any): Promise<void> {
+  console.log('[MessageRouter] Community joined:', data.communityId);
+  
+  // Immediately refresh sidebar without polling
+  if (this.internalPluginHost?.communitySidebar) {
+    await this.internalPluginHost.refreshCommunitySidebar();
+  }
+}
+```
+
+#### **Step 2.2: Add PostMessage Sender (Curia Forum)**
+**File**: `../curia/src/components/CommunityJoinNotifier.tsx` (new component)
+
+```typescript
+export const CommunityJoinNotifier: React.FC = () => {
+  useEffect(() => {
+    // Listen for successful community join events
+    const handleCommunityJoinSuccess = (event: CustomEvent) => {
+      const { communityId, community } = event.detail;
+      
+      // Notify parent frame
+      window.parent.postMessage({
+        type: 'curia-community-joined',
+        data: {
+          userId: getCurrentUserId(),
+          communityId,
+          community,
+          timestamp: Date.now()
+        }
+      }, '*');
+    };
+    
+    window.addEventListener('curia-community-join-success', handleCommunityJoinSuccess);
+    return () => window.removeEventListener('curia-community-join-success', handleCommunityJoinSuccess);
+  }, []);
+
+  return null;
+};
+```
+
+### **Phase 3: Replace Polling with Event-Driven Updates**
+
+#### **Step 3.1: Remove Polling Calls**
+**File**: `host-service/src/lib/embed/plugin-host/InternalPluginHost.ts`
+
+```typescript
+// REMOVE these calls:
+// this.startCommunityPolling('initial');        // Line 715
+// this.startCommunityPolling('community-switch'); // Line 1182  
+// this.startCommunityPolling('community-switch'); // Line 1320
+
+// REPLACE with:
+// Initial sidebar load still needs one fetch
+// Community switches now rely on postMessage events
+```
+
+#### **Step 3.2: Add Event Listener Integration**
+**File**: `host-service/src/lib/embed/plugin-host/InternalPluginHost.ts`
+
+Add to constructor:
+```typescript
+// Listen for community join events and update sidebar immediately
+this.messageRouter.on('community-joined', (data) => {
+  this.handleCommunityJoinEvent(data);
+});
+
+private async handleCommunityJoinEvent(data: any): Promise<void> {
+  console.log('[InternalPluginHost] Community join event received:', data.communityId);
+  
+  // Update sidebar immediately without API call
+  if (this.communitySidebar) {
+    this.communitySidebar.addCommunity(data.community);
+  }
+  
+  // Update last known communities for change detection
+  this.lastKnownCommunities.push(data.community);
+}
+```
+
+### **Phase 4: Testing & Validation**
+
+#### **Step 4.1: Test Community Join Flow**
+- [ ] User joins community via discovery modal → postMessage sent → sidebar updates instantly
+- [ ] User joins community via direct link → postMessage sent → sidebar updates instantly  
+- [ ] Multiple rapid joins → all postMessages sent → sidebar updates correctly
+- [ ] Join fails → no postMessage sent → sidebar unchanged
+
+#### **Step 4.2: Performance Validation**
+- [ ] **Before**: 25 API calls per embed load
+- [ ] **After**: 1 API call per embed load + instant postMessage updates
+- [ ] **CPU usage**: Monitor polling timer elimination
+- [ ] **Network traffic**: Verify API call reduction
+
+### **Phase 5: Bidirectional Commands (Optional Enhancement)**
+
+#### **Step 5.1: Add Command System**
+Implement `curia-command` and `curia-command-response` protocol starting with `open-search` command.
+
+#### **Step 5.2: Extended Commands**
+Add additional commands like `focus-composer`, `navigate-to-post`, etc.
 
 ---
 
-**Once Phase 1 is implemented, we can completely remove the community polling and eliminate the major performance bottleneck. Phase 2 opens up powerful integration possibilities for enhanced user experiences across the embed ecosystem.** 
+## ⚡ **Performance Impact Projection**
+
+**Current State**:
+- 🔥 25 API calls per embed load
+- 🔥 Continuous polling every second for 5 seconds
+- 🔥 High CPU usage causing hot computers
+
+**After Implementation**:
+- ✅ 1 API call per embed load (95% reduction)
+- ✅ Instant sidebar updates (no polling delay)
+- ❄️ Cool computers for developers
+
+**Critical Success Metrics**:
+1. **API Call Reduction**: From 25+ to 1 per embed load
+2. **Update Latency**: From 0-5 seconds to instant
+3. **CPU Usage**: Elimination of polling timers
+4. **User Experience**: Immediate visual feedback on joins 

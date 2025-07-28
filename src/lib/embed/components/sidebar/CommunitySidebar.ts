@@ -195,7 +195,8 @@ export class CommunitySidebar {
           if (this.mobileProfileDrawer) {
             this.mobileProfileDrawer.show();
           }
-        }
+        },
+        messageRouter: this.messageRouter || undefined  // 🆕 NEW - Pass MessageRouter for mobile functionality (null → undefined)
       });
       
       const bottomNavElement = this.mobileBottomNav.render();

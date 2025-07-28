@@ -8,6 +8,7 @@
 import { UserCommunityMembership } from '../sidebar/CommunityItem';
 import { UserProfile } from '../profile/UserProfile';
 import { getGradientStyle, getGradientClass, getIconForCommunity, getIconHTML } from '../../styling';
+import { MessageRouter } from '../../services/messaging/MessageRouter';
 
 export interface MobileBottomNavOptions {
   communities: UserCommunityMembership[];
@@ -15,6 +16,7 @@ export interface MobileBottomNavOptions {
   userProfile: UserProfile;
   onCommunityMenuClick: () => void;
   onProfileMenuClick: () => void;
+  messageRouter?: MessageRouter;
 }
 
 export class MobileBottomNav {
@@ -23,12 +25,14 @@ export class MobileBottomNav {
   private userProfile: UserProfile;
   private options: MobileBottomNavOptions;
   private element: HTMLElement | null = null;
+  private messageRouter: MessageRouter | null = null;  // 🆕 NEW - MessageRouter for mobile actions
 
   constructor(options: MobileBottomNavOptions) {
     this.communities = options.communities;
     this.currentCommunityId = options.currentCommunityId;
     this.userProfile = options.userProfile;
     this.options = options;
+    this.messageRouter = options.messageRouter || null;  // 🆕 NEW - Store MessageRouter reference
   }
 
   render(): HTMLElement {
@@ -112,38 +116,107 @@ export class MobileBottomNav {
 
   private renderSearchStub(): HTMLElement {
     const section = document.createElement('div');
-    section.className = 'mobile-nav-section inactive';
+    section.className = 'mobile-nav-section'; // 🆕 REMOVED 'inactive' - make it functional
     
     const icon = document.createElement('div');
     icon.className = 'mobile-stub-icon';
     icon.innerHTML = getIconHTML('search', { size: 20 }); // Beautiful Lucide search icon
     
     section.appendChild(icon);
+    
+    // 🆕 NEW - Add touch-friendly event handlers for mobile
+    const handleSearchAction = async (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (!this.messageRouter) {
+        console.warn('[MobileBottomNav] Search clicked but no MessageRouter available');
+        return;
+      }
+      
+      try {
+        console.log('[MobileBottomNav] Mobile search triggered');
+        this.messageRouter.sendSidebarAction('search');
+      } catch (error) {
+        console.error('[MobileBottomNav] Failed to execute search action:', error);
+      }
+    };
+    
+    // Add both touch and click events for maximum compatibility
+    section.addEventListener('touchstart', handleSearchAction);
+    section.addEventListener('click', handleSearchAction);
+    
     return section;
   }
 
   private renderMessagesStub(): HTMLElement {
     const section = document.createElement('div');
-    section.className = 'mobile-nav-section inactive';
+    section.className = 'mobile-nav-section'; // 🆕 REMOVED 'inactive' - make it functional
     
     const icon = document.createElement('div');
     icon.className = 'mobile-stub-icon';
     icon.innerHTML = getIconHTML('messages', { size: 20 }); // Beautiful Lucide message square icon
     
     section.appendChild(icon);
+    
+    // 🆕 NEW - Add touch-friendly event handlers for mobile
+    const handleMessagesAction = async (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (!this.messageRouter) {
+        console.warn('[MobileBottomNav] Messages clicked but no MessageRouter available');
+        return;
+      }
+      
+      try {
+        console.log('[MobileBottomNav] Mobile messages triggered');
+        this.messageRouter.sendSidebarAction('messages');
+      } catch (error) {
+        console.error('[MobileBottomNav] Failed to execute messages action:', error);
+      }
+    };
+    
+    // Add both touch and click events for maximum compatibility
+    section.addEventListener('touchstart', handleMessagesAction);
+    section.addEventListener('click', handleMessagesAction);
+    
     return section;
   }
 
   private renderNotificationsStub(): HTMLElement {
     const section = document.createElement('div');
-    section.className = 'mobile-nav-section inactive';
+    section.className = 'mobile-nav-section'; // 🆕 REMOVED 'inactive' - make it functional
     
     const icon = document.createElement('div');
     icon.className = 'mobile-stub-icon';
     icon.innerHTML = getIconHTML('notifications', { size: 20 }); // Beautiful Lucide bell icon
     
     section.appendChild(icon);
-    return section;  
+    
+    // 🆕 NEW - Add touch-friendly event handlers for mobile
+    const handleNotificationsAction = async (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (!this.messageRouter) {
+        console.warn('[MobileBottomNav] Notifications clicked but no MessageRouter available');
+        return;
+      }
+      
+      try {
+        console.log('[MobileBottomNav] Mobile notifications triggered');
+        this.messageRouter.sendSidebarAction('notifications');
+      } catch (error) {
+        console.error('[MobileBottomNav] Failed to execute notifications action:', error);
+      }
+    };
+    
+    // Add both touch and click events for maximum compatibility
+    section.addEventListener('touchstart', handleNotificationsAction);
+    section.addEventListener('click', handleNotificationsAction);
+    
+    return section;
   }
 
   private renderProfileMenu(): HTMLElement {

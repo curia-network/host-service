@@ -150,6 +150,48 @@ private setupGlobalKeyboardShortcuts(): void {
 - **Same code path**: Uses identical `sendSidebarAction('search')` as button click
 - **Proper cleanup**: Removes listener when embed is destroyed
 
+### **Mobile Touch Support**
+
+**Fixed mobile touch compatibility for iPhone/Android**:
+
+```typescript
+// In MobileBottomNav - made functional instead of stubs
+private renderSearchStub(): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'mobile-nav-section'; // Removed 'inactive' class
+  
+  const handleSearchAction = async (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!this.messageRouter) {
+      console.warn('[MobileBottomNav] Search clicked but no MessageRouter available');
+      return;
+    }
+    
+    try {
+      console.log('[MobileBottomNav] Mobile search triggered');
+      this.messageRouter.sendSidebarAction('search');
+    } catch (error) {
+      console.error('[MobileBottomNav] Failed to execute search action:', error);
+    }
+  };
+  
+  // Add both touch and click events for maximum compatibility
+  section.addEventListener('touchstart', handleSearchAction);
+  section.addEventListener('click', handleSearchAction);
+  
+  return section;
+}
+```
+
+**What was fixed**:
+- **Mobile nav items were inactive stubs** - no functionality at all
+- **Added touch-friendly event listeners** - `touchstart` + `click` for compatibility  
+- **Removed 'inactive' class** - made buttons actually functional
+- **Passed MessageRouter to MobileBottomNav** - same infrastructure as desktop
+- **Proper event handling** - preventDefault() and stopPropagation() for touch
+
 ## 🚀 BENEFITS OF THIS APPROACH
 
 1. **Leverages Existing Infrastructure**: Uses the robust `MessageRouter` with its UID-based routing and multi-iframe management
@@ -160,10 +202,10 @@ private setupGlobalKeyboardShortcuts(): void {
 
 ## 🎯 CURRENT FUNCTIONALITY
 
-- ✅ **Search Button**: Opens GlobalSearchModal in forum
+- ✅ **Search Button**: Opens GlobalSearchModal in forum (desktop + mobile touch)
 - ✅ **Cmd+K Shortcut**: Opens GlobalSearchModal in forum (cross-platform: Cmd+K on Mac, Ctrl+K on Windows/Linux)
-- 🚧 **Messages Button**: Placeholder (ready for implementation)
-- 🚧 **Notifications Button**: Placeholder (ready for implementation)
+- 🚧 **Messages Button**: Placeholder (ready for implementation - desktop + mobile touch)
+- 🚧 **Notifications Button**: Placeholder (ready for implementation - desktop + mobile touch)
 
 ## 🔄 MESSAGE FLOW
 
@@ -189,6 +231,23 @@ private setupGlobalKeyboardShortcuts(): void {
 [Cmd+K or Ctrl+K pressed] 
     ↓
 [InternalPluginHost.keyboardListener checks scope]
+    ↓
+[MessageRouter.sendSidebarAction('search')] 
+    ↓
+[Gets active iframe via getActiveIframe callback]
+    ↓
+[Sends postMessage to iframe]
+    ↓
+[SidebarActionListener receives message]
+    ↓
+[Opens GlobalSearchModal]
+```
+
+### **Mobile Touch (iPhone/Android)**
+```
+[Touch button on mobile nav] 
+    ↓
+[MobileBottomNav.handleSearchAction() with touchstart event]
     ↓
 [MessageRouter.sendSidebarAction('search')] 
     ↓

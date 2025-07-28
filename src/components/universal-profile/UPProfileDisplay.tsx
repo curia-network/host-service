@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { getUPSocialProfile, UPSocialProfile } from '../../lib/upProfile';
 import { lsp26Registry, LSP26Stats } from '../../lib/lsp26';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useSafeTheme } from '@/hooks/useSafeTheme';
 import { sessionManager } from '@/lib/SessionManager';
 
 // TypeScript declarations for Universal Profile extension
@@ -55,7 +55,7 @@ export const UPProfileDisplay: React.FC<UPProfileDisplayProps> = ({
   className = ''
 }) => {
   // 🎨 Theme system integration
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme } = useSafeTheme();
   
   // 🔥 CRITICAL: Fix hydration issue with mounting check (proven pattern)
   const [hasMounted, setHasMounted] = useState(false);

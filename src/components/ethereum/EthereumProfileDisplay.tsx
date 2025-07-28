@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useDisconnect, useAccount, useSignMessage } from 'wagmi';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useSafeTheme } from '@/hooks/useSafeTheme';
 import { sessionManager } from '@/lib/SessionManager';
 
 // ===== TYPES =====
@@ -70,7 +70,7 @@ export const EthereumProfileDisplay: React.FC<EthereumProfileDisplayProps> = ({
   const { address: connectedAddress, isConnected } = useAccount();
   
   // 🎨 Theme system integration
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme } = useSafeTheme();
   
   // 🎨 Wallet signing integration
   const { signMessageAsync } = useSignMessage();

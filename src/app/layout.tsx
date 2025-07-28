@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ConditionalThemeProvider } from "@/components/ConditionalThemeProvider";
 import { QueryProvider } from "@/contexts/QueryProvider";
 
 const baseUrl = process.env.NEXT_PUBLIC_HOST_SERVICE_URL || 'https://curia.network';
@@ -66,13 +66,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased overflow-x-hidden">
         <QueryProvider>
-          <ThemeProvider
-            defaultTheme="system"
-            enableSystem
-            attribute="class"
-          >
+          <ConditionalThemeProvider>
             {children}
-          </ThemeProvider>
+          </ConditionalThemeProvider>
         </QueryProvider>
       </body>
     </html>

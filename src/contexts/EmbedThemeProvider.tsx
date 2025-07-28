@@ -22,13 +22,33 @@ export function EmbedThemeProvider({ children, theme }: EmbedThemeProviderProps)
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
       theme;
     
-    // Apply theme to document without localStorage
+    console.log('[EmbedThemeProvider] Applying theme:', { 
+      requested: theme, 
+      resolved: resolvedTheme,
+      systemIsDark: window.matchMedia('(prefers-color-scheme: dark)').matches 
+    });
+    
+    // Apply theme to document - BOTH CSS classes AND data attributes for full compatibility
+    // Remove existing theme classes and attributes
     document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.removeAttribute('data-theme');
+    
+    // Set new theme via CSS class (for .dark/.light selectors)
     document.documentElement.classList.add(resolvedTheme);
+    
+    // Set new theme via data attribute (for [data-theme="dark"] selectors)
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+    
+    console.log('[EmbedThemeProvider] Theme applied successfully:', {
+      classList: document.documentElement.classList.toString(),
+      dataTheme: document.documentElement.getAttribute('data-theme')
+    });
     
     // Cleanup function to restore original theme when component unmounts
     return () => {
       document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.removeAttribute('data-theme');
+      console.log('[EmbedThemeProvider] Theme cleaned up on unmount');
     };
   }, [theme]);
 

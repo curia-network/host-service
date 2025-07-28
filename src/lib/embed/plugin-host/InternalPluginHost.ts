@@ -216,6 +216,9 @@ export class InternalPluginHost {
   // Signature validation
   private readonly publicKey: string;
 
+  // Global keyboard shortcuts
+  private keyboardListener: ((event: KeyboardEvent) => void) | null = null;  // 🆕 NEW - Store listener for cleanup
+
   constructor(container: HTMLElement, config: EmbedConfig, hostServiceUrl: string, forumUrl: string, publicKey: string) {
     this.container = container;
     this.config = config;
@@ -257,7 +260,8 @@ export class InternalPluginHost {
         onCommunitySwitchRequest: this.handleCommunitySwitchRequest.bind(this),
         onCommunityDiscoveryComplete: this.handleCommunityDiscoveryComplete.bind(this),
         onAddSessionComplete: this.handleAddSessionComplete.bind(this),
-        onApiProxyReady: this.onApiProxyReady.bind(this)
+        onApiProxyReady: this.onApiProxyReady.bind(this),
+        getActiveIframe: this.getActiveIframe.bind(this)  // 🆕 NEW - Provide active iframe access
       },
       publicKey // Pass public key for signature validation
     );
@@ -726,7 +730,8 @@ export class InternalPluginHost {
       onMenuAction: (action: string) => this.handleMenuAction(action),
       getIframeStatus: (communityId: string) => this.hasIframeLoaded(communityId),
       onPlusButtonClick: () => this.openDiscoveryModal(),
-      embedContainer: this.embedContainer || undefined // 🎯 Pass embed container for mobile boundary respect (null → undefined)
+      embedContainer: this.embedContainer || undefined, // 🎯 Pass embed container for mobile boundary respect (null → undefined)
+      messageRouter: this.messageRouter  // 🆕 NEW - Pass MessageRouter for sidebar actions
     });
 
     // 🚀 REMOVED: Start initial 5-second polling to catch immediate community joins
@@ -906,6 +911,9 @@ export class InternalPluginHost {
 
     // Setup container layout (sidebar + iframe or just iframe)
     this.setupContainerLayout();
+
+    // Setup global keyboard shortcuts (Cmd+K for search)
+    this.setupGlobalKeyboardShortcuts();
 
     // Get the iframe container
     const iframeContainer = this.embedContainer?.querySelector('.curia-iframe-container') || this.container;
@@ -1136,6 +1144,51 @@ export class InternalPluginHost {
    */
   private hasIframeLoaded(communityId: string): boolean {
     return this.communityIframes.has(communityId);
+  }
+
+  /**
+   * Get the currently active iframe (for MessageRouter sidebar actions)
+   */
+  private getActiveIframe(): HTMLIFrameElement | null {
+    if (!this.activeCommunityId) {
+      console.warn('[InternalPluginHost] No active community set');
+      return null;
+    }
+    
+    const activeIframe = this.communityIframes.get(this.activeCommunityId);
+    if (!activeIframe) {
+      console.warn(`[InternalPluginHost] No iframe found for active community: ${this.activeCommunityId}`);
+      return null;
+    }
+    
+    return activeIframe;
+  }
+
+  /**
+   * Setup global keyboard shortcuts for the embed (Cmd+K for search)
+   */
+  private setupGlobalKeyboardShortcuts(): void {
+    this.keyboardListener = (event: KeyboardEvent) => {
+      // Cmd+K on Mac, Ctrl+K on Windows/Linux
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        // Only trigger if focus is within our embed container or no specific focus
+        const isWithinEmbed = !this.embedContainer || 
+                             this.embedContainer.contains(document.activeElement) ||
+                             document.activeElement === document.body ||
+                             document.activeElement === null;
+        
+        if (isWithinEmbed) {
+          event.preventDefault();
+          event.stopPropagation();
+          
+          console.log('[InternalPluginHost] Global Cmd+K triggered - opening search');
+          this.messageRouter.sendSidebarAction('search');
+        }
+      }
+    };
+
+    document.addEventListener('keydown', this.keyboardListener);
+    console.log('[InternalPluginHost] Global keyboard shortcuts enabled (Cmd+K for search)');
   }
 
   /**
@@ -1641,6 +1694,13 @@ export class InternalPluginHost {
     
     // 🚀 CRITICAL FIX: Stop community polling timer to prevent performance leaks
     this.stopCommunityPolling();
+    
+    // Cleanup global keyboard shortcuts
+    if (this.keyboardListener) {
+      document.removeEventListener('keydown', this.keyboardListener);
+      this.keyboardListener = null;
+      console.log('[InternalPluginHost] Global keyboard shortcuts cleanup completed');
+    }
     
     // Destroy services
     if (this.authService) {

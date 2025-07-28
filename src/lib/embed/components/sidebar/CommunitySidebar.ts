@@ -15,6 +15,7 @@ import { MobileProfileDrawer } from '../mobile/MobileProfileDrawer';
 import { injectStyles } from '../../styling';
 import { getIconHTML } from '../../styling/utils/icons';
 import { isMobileViewport, addResizeListener } from '../../utils/responsive';
+import { MessageRouter } from '../../services/messaging/MessageRouter';  // 🆕 NEW - Import MessageRouter
 
 export interface CommunitySidebarOptions {
   communities: UserCommunityMembership[];
@@ -26,6 +27,7 @@ export interface CommunitySidebarOptions {
   getIframeStatus?: (communityId: string) => boolean; // Simple function to check if iframe is loaded
   onPlusButtonClick?: () => void; // Callback for plus button click (community discovery)
   embedContainer?: HTMLElement; // 🎯 Container for modal boundaries - no more hijacking!
+  messageRouter?: MessageRouter;  // 🆕 NEW - MessageRouter for sidebar actions
 }
 
 export class CommunitySidebar {
@@ -35,6 +37,7 @@ export class CommunitySidebar {
   private hostServiceUrl: string; // 🎯 Host service URL for absolute asset paths
   private options: CommunitySidebarOptions;
   private embedContainer: HTMLElement | null = null; // 🎯 Reference to embed container for boundary respect
+  private messageRouter: MessageRouter | null = null;  // 🆕 NEW - MessageRouter for sidebar actions
   
   private container: HTMLElement | null = null;
   private communityItems: CommunityItem[] = [];
@@ -55,6 +58,7 @@ export class CommunitySidebar {
     this.hostServiceUrl = options.hostServiceUrl; // 🎯 Store host service URL
     this.options = options;
     this.embedContainer = options.embedContainer || null; // 🎯 Store embed container reference
+    this.messageRouter = options.messageRouter || null;  // 🆕 NEW - Store MessageRouter reference
     this.previewManager = CommunityPreviewManager.getInstance();
     
     // Initialize mobile state
@@ -525,12 +529,43 @@ export class CommunitySidebar {
     
     item.appendChild(iconContainer);
     
-    // Add click handler (stub for now)
-    item.addEventListener('click', () => {
-      console.log(`[CommunitySidebar] ${label} clicked - functionality not implemented yet`);
+    // Add click handler to send sidebar action
+    item.addEventListener('click', async () => {
+      await this.handleNavItemClick(iconName, label);
     });
     
     return item;
+  }
+
+  /**
+   * Handle navigation item clicks by sending sidebar actions
+   */
+  private async handleNavItemClick(iconName: 'search' | 'messages' | 'notifications', label: string): Promise<void> {
+    if (!this.messageRouter) {
+      console.warn(`[CommunitySidebar] ${label} clicked but no MessageRouter available`);
+      return;
+    }
+
+    try {
+      console.log(`[CommunitySidebar] Triggering ${iconName} action in forum`);
+      
+      // Send appropriate sidebar action based on icon
+      switch (iconName) {
+        case 'search':
+          this.messageRouter.sendSidebarAction('search');
+          break;
+        case 'messages':
+          this.messageRouter.sendSidebarAction('messages');
+          break;
+        case 'notifications':
+          this.messageRouter.sendSidebarAction('notifications');
+          break;
+        default:
+          console.warn(`[CommunitySidebar] Unknown nav item: ${iconName}`);
+      }
+    } catch (error) {
+      console.error(`[CommunitySidebar] Failed to execute ${label} action:`, error);
+    }
   }
 
   /**

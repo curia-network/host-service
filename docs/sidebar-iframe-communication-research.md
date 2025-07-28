@@ -112,6 +112,44 @@
 
 2. **Added to layout.tsx** inside Providers for GlobalSearchContext access.
 
+### **Global Keyboard Shortcuts (Cmd+K)**
+
+**Added global Cmd+K support at the host service level**:
+
+```typescript
+// In InternalPluginHost
+private setupGlobalKeyboardShortcuts(): void {
+  this.keyboardListener = (event: KeyboardEvent) => {
+    // Cmd+K on Mac, Ctrl+K on Windows/Linux
+    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      // Only trigger if focus is within our embed container or no specific focus
+      const isWithinEmbed = !this.embedContainer || 
+                           this.embedContainer.contains(document.activeElement) ||
+                           document.activeElement === document.body ||
+                           document.activeElement === null;
+      
+      if (isWithinEmbed) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        console.log('[InternalPluginHost] Global Cmd+K triggered - opening search');
+        this.messageRouter.sendSidebarAction('search');
+      }
+    }
+  };
+
+  document.addEventListener('keydown', this.keyboardListener);
+  console.log('[InternalPluginHost] Global keyboard shortcuts enabled (Cmd+K for search)');
+}
+```
+
+**Benefits**:
+- **Cross-platform**: Supports both Cmd+K (Mac) and Ctrl+K (Windows/Linux)
+- **Scoped properly**: Only triggers when focus is within embed container
+- **No conflicts**: Prevents default behavior to avoid interfering with forum's Cmd+K
+- **Same code path**: Uses identical `sendSidebarAction('search')` as button click
+- **Proper cleanup**: Removes listener when embed is destroyed
+
 ## 🚀 BENEFITS OF THIS APPROACH
 
 1. **Leverages Existing Infrastructure**: Uses the robust `MessageRouter` with its UID-based routing and multi-iframe management
@@ -123,11 +161,13 @@
 ## 🎯 CURRENT FUNCTIONALITY
 
 - ✅ **Search Button**: Opens GlobalSearchModal in forum
+- ✅ **Cmd+K Shortcut**: Opens GlobalSearchModal in forum (cross-platform: Cmd+K on Mac, Ctrl+K on Windows/Linux)
 - 🚧 **Messages Button**: Placeholder (ready for implementation)
 - 🚧 **Notifications Button**: Placeholder (ready for implementation)
 
 ## 🔄 MESSAGE FLOW
 
+### **Sidebar Button Click**
 ```
 [Sidebar Button Click] 
     ↓
@@ -144,12 +184,28 @@
 [Triggers appropriate forum action]
 ```
 
+### **Keyboard Shortcut (Cmd+K)**
+```
+[Cmd+K or Ctrl+K pressed] 
+    ↓
+[InternalPluginHost.keyboardListener checks scope]
+    ↓
+[MessageRouter.sendSidebarAction('search')] 
+    ↓
+[Gets active iframe via getActiveIframe callback]
+    ↓
+[Sends postMessage to iframe]
+    ↓
+[SidebarActionListener receives message]
+    ↓
+[Opens GlobalSearchModal]
+```
+
 ## 📝 NEXT STEPS
 
 1. **Implement Messages Interface**: Add messages functionality to forum and wire up the action
 2. **Implement Notifications Interface**: Add notifications functionality to forum and wire up the action  
-3. **Add Keyboard Shortcuts**: Consider adding global Cmd+K support in host service
-4. **Enhanced Payloads**: Add support for passing search queries or other parameters
+3. **Enhanced Payloads**: Add support for passing search queries or other parameters from sidebar actions
 
 ---
 

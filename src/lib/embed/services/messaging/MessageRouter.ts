@@ -19,7 +19,8 @@ export enum InternalMessageType {
   API_REQUEST = 'api_request',
   API_RESPONSE = 'api_response',
   INIT = 'init',
-  ERROR = 'error'
+  ERROR = 'error',
+  SIDEBAR_ACTION = 'sidebar_action'  // 🆕 NEW - For sending sidebar actions to forum
 }
 
 export interface InternalPluginMessage {
@@ -34,14 +35,24 @@ export interface InternalPluginMessage {
   timestamp?: number; // ✅ Add timestamp field to match signed data
 }
 
+/**
+ * Extends InternalPluginMessage for sidebar actions
+ */
+interface SidebarActionMessage extends InternalPluginMessage {
+  type: InternalMessageType.SIDEBAR_ACTION;
+  action: 'search' | 'messages' | 'notifications';
+  payload?: any;
+}
+
 export interface MessageRouterCallbacks {
-  onAuthComplete?: (authData: any) => Promise<void>;
+  onAuthComplete?: (data: any) => Promise<void>;
   onForumInit?: () => void;
   getAuthContext?: () => InternalAuthContext | null;
   onCommunitySwitchRequest?: (communityId: string, options?: any) => Promise<any>;
-  onCommunityDiscoveryComplete?: (discoveryData: any) => Promise<void>;
-  onAddSessionComplete?: (sessionData: any) => Promise<void>;
-  onApiProxyReady?: (sourceWindow: Window) => void;
+  onCommunityDiscoveryComplete?: (data: any) => Promise<void>;
+  onAddSessionComplete?: (data: any) => Promise<void>;
+  onApiProxyReady?: (iframeWindow: Window) => void;
+  getActiveIframe?: () => HTMLIFrameElement | null;  // 🆕 NEW - Get currently active iframe
 }
 
 export class MessageRouter {
@@ -317,6 +328,31 @@ export class MessageRouter {
       iframe.contentWindow.postMessage(message, '*');
       console.log('[MessageRouter] Message sent to iframe:', message.type, message.requestId);
     }
+  }
+
+  /**
+   * Send a sidebar action to the currently active iframe
+   */
+  sendSidebarAction(action: 'search' | 'messages' | 'notifications', payload?: any): void {
+    // Get the currently active iframe from callback
+    const activeIframe = this.callbacks.getActiveIframe?.();
+    if (!activeIframe) {
+      console.warn('[MessageRouter] No active iframe available for sidebar action:', action);
+      return;
+    }
+
+    // Create sidebar action message
+    const message: SidebarActionMessage = {
+      type: InternalMessageType.SIDEBAR_ACTION,
+      action,
+      payload,
+      iframeUid: this.myUid,
+      requestId: `sidebar_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+
+    // Send to active iframe
+    this.sendMessageToIframe(activeIframe, message);
+    console.log(`[MessageRouter] Sidebar action sent: ${action}`, payload);
   }
 
   /**

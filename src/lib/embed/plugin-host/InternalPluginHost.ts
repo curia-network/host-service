@@ -128,6 +128,8 @@ export class InternalPluginHost {
       // Add to document body
       document.body.appendChild(InternalPluginHost.sharedSessionServiceIframe);
       
+      console.log('[InternalPluginHost] Session service iframe created and added to DOM');
+      
       // Initialize proxy
       InternalPluginHost.sharedSessionServiceProxy = new SessionServiceProxy(InternalPluginHost.sharedSessionServiceIframe);
     } else {
@@ -310,10 +312,15 @@ export class InternalPluginHost {
       console.log('[InternalPluginHost] 🔄 Session service ready, syncing data to parent SessionManager...');
       
       // Pull authoritative session data from session service
+      console.log('[InternalPluginHost] 🔄 Requesting all sessions from session service...');
       const sessions = await this.sessionServiceProxy.getAllSessions();
-      const activeSession = await this.sessionServiceProxy.getActiveSession();
+      console.log('[InternalPluginHost] 🔄 All sessions received:', sessions?.length || 0);
       
-      console.log('[InternalPluginHost] 🔄 Retrieved from session service:', sessions.length, 'sessions, active:', activeSession?.userId);
+      console.log('[InternalPluginHost] 🔄 Requesting active session from session service...');
+      const activeSession = await this.sessionServiceProxy.getActiveSession();
+      console.log('[InternalPluginHost] 🔄 Active session received:', activeSession?.userId || 'none');
+      
+      console.log('[InternalPluginHost] 🔄 Retrieved from session service:', sessions?.length || 0, 'sessions, active:', activeSession?.userId || 'none');
       
       // Update parent SessionManager with authoritative data
       sessionManager.bulkUpdateSessions(sessions);
@@ -330,6 +337,12 @@ export class InternalPluginHost {
       
     } catch (error) {
       console.error('[InternalPluginHost] Failed to sync session service to parent:', error);
+      console.error('[InternalPluginHost] Session service proxy state:', {
+        exists: !!this.sessionServiceProxy,
+        iframe: !!this.sessionServiceIframe,
+        iframeContentWindow: !!this.sessionServiceIframe?.contentWindow,
+        iframeSrc: this.sessionServiceIframe?.src
+      });
     }
   }
 

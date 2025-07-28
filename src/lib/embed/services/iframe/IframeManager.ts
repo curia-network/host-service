@@ -73,7 +73,19 @@ export class IframeManager {
     
     // Build auth iframe URL
     const authUrl = new URL(`${this.hostServiceUrl}/embed`);
-    authUrl.searchParams.set('theme', config.theme || 'light');
+    
+    // Theme resolution - consistent with forum iframe
+    let resolvedTheme = config.theme || 'light';
+    if (resolvedTheme === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        resolvedTheme = 'dark';
+      } else {
+        resolvedTheme = 'light';
+      }
+      console.log('[IframeManager] Resolved auto theme to:', resolvedTheme);
+    }
+    
+    authUrl.searchParams.set('theme', resolvedTheme);
     
     if (config.backgroundColor) {
       authUrl.searchParams.set('background_color', config.backgroundColor);

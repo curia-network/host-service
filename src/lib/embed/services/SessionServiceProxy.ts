@@ -40,7 +40,12 @@ export class SessionServiceProxy {
   }
 
   public async getAllSessions(): Promise<any[]> {
-    return this.sendRequest('getAllSessions');
+    try {
+      return await this.sendRequest('getAllSessions');
+    } catch (error) {
+      console.error('[SessionServiceProxy] getAllSessions failed:', error);
+      throw error;
+    }
   }
 
   public async getActiveSession(): Promise<any> {
@@ -54,6 +59,11 @@ export class SessionServiceProxy {
   private async sendRequest(operation: string, data?: any): Promise<any> {
     await this.waitForReady();
 
+    // Check if iframe is accessible
+    if (!this.iframe.contentWindow) {
+      throw new Error(`Session service iframe not accessible for operation: ${operation}`);
+    }
+
     const requestId = this.generateRequestId();
     
     return new Promise((resolve, reject) => {
@@ -65,8 +75,8 @@ export class SessionServiceProxy {
 
       this.pendingRequests.set(requestId, { resolve, reject, timeout });
 
-      // Send message to iframe
-      this.iframe.contentWindow?.postMessage({
+      // Send message to iframe - now we know contentWindow exists
+      this.iframe.contentWindow!.postMessage({
         type: 'session-operation',
         operation,
         data,

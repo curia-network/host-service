@@ -598,6 +598,192 @@ yarn dev
 - Add comprehensive JSDoc comments
 - Include error handling and logging
 
+## 🆔 Adding New Identity Types
+
+The Host Service supports different user identity types (ENS, Universal Profile, legacy, anonymous) for friends synchronization. This guide shows how to add a new identity type using **Universal Profile (UP)** as an example.
+
+### Current Identity Support
+
+| Identity Type | Database Field | Friends Source | Status |
+|---------------|----------------|----------------|---------|
+| `ens` | `ens_domain` | Ethereum Follow Protocol (EFP) | ✅ Implemented |
+| `universal_profile` | `up_address` | Universal Profile Following | 🔄 Planned |
+| `legacy` | - | Common Ground API | ✅ Implemented |
+| `anonymous` | - | No friends | ✅ Implemented |
+
+### Step-by-Step Implementation Guide
+
+#### 1. **Create the Friends Service**
+
+Create a new service file `src/lib/friends/UpFriendsService.ts`:
+
+```typescript
+import { FriendInfo } from '../DataProvider';
+
+export class UpFriendsService {
+  private static readonly UP_API_BASE = 'https://rpc.lukso.network';
+  private static readonly CHUNK_SIZE = 100;
+  private static readonly CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+  
+  private friendsCache = new Map<string, { 
+    data: FriendInfo[], 
+    timestamp: number 
+  }>();
+
+  /**
+   * Fetch UP friends for a given Universal Profile address
+   */
+  async fetchWithCache(upAddress: string, userId: string): Promise<FriendInfo[]> {
+    // Implementation details...
+  }
+
+  /**
+   * Fetch following list from Universal Profile LSP26 Following Registry
+   */
+  private async fetchUserFollowing(upAddress: string): Promise<FriendInfo[]> {
+    // Universal Profile specific API calls...
+  }
+}
+```
+
+#### 2. **Update Database Schema Validation** 
+
+The database already supports UP identities. Verify the constraints in your database:
+
+```sql
+-- Check existing constraint
+SELECT constraint_name, check_clause 
+FROM information_schema.check_constraints 
+WHERE constraint_name = 'check_identity_data';
+
+-- Should include universal_profile validation:
+-- (identity_type = 'universal_profile' AND up_address IS NOT NULL)
+```
+
+#### 3. **Integrate with DataProvider**
+
+Update `src/lib/DataProvider.ts` to detect and handle UP users:
+
+```typescript
+// In DatabaseDataProvider.getUserFriends()
+async getUserFriends(userId: string, limit: number = 100, offset: number = 0): Promise<FriendInfo[]> {
+  // Get user identity information
+  const userQuery = `SELECT identity_type, wallet_address, ens_domain, up_address FROM users WHERE user_id = $1`;
+  const userResult = await this.query(userQuery, [userId]);
+  
+  if (userResult.rows.length === 0) {
+    console.log(`[DatabaseDataProvider] User ${userId} not found`);
+    return [];
+  }
+
+  const user = userResult.rows[0];
+  console.log(`[DatabaseDataProvider] User ${userId} identity: ${user.identity_type}`);
+
+  // Handle Universal Profile users
+  if (user.identity_type === 'universal_profile' && user.up_address) {
+    try {
+      console.log(`[DatabaseDataProvider] Fetching UP friends for ${user.up_address}`);
+      const upFriends = await this.upFriendsService.fetchWithCache(user.up_address, userId);
+      return upFriends.slice(offset, offset + limit);
+    } catch (error) {
+      console.error(`[DatabaseDataProvider] UP friends fetch failed:`, error);
+      // Fall back to database query
+    }
+  }
+
+  // Handle ENS users (existing logic)
+  if (user.identity_type === 'ens' && user.wallet_address) {
+    // ... existing ENS logic
+  }
+
+  // Fallback to database friends
+  // ... existing database query logic
+}
+```
+
+#### 4. **Update Friend User Creation**
+
+Update forum app files to detect and properly create UP users:
+
+In `curia/src/app/api/me/friends/sync/route.ts` and `curia/src/app/api/auth/session/route.ts`:
+
+```typescript
+// Detect Universal Profile users
+const isUpUser = friend.name && friend.id.startsWith('0x') && friend.id.length === 42;
+const isEnsUser = friend.name && friend.name.endsWith('.eth');
+
+if (isUpUser) {
+  // UP user: set identity_type='universal_profile', up_address
+  await query(
+    `INSERT INTO users (user_id, name, profile_picture_url, identity_type, up_address, updated_at)
+     VALUES ($1, $2, $3, 'universal_profile', $4, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET ...`,
+    [friend.id, friend.name, friend.image || null, friend.id]
+  );
+} else if (isEnsUser) {
+  // ... existing ENS logic
+}
+```
+
+#### 5. **Add Service Dependencies**
+
+Update the constructor of `DatabaseDataProvider`:
+
+```typescript
+import { UpFriendsService } from './friends/UpFriendsService';
+
+export class DatabaseDataProvider extends DataProvider {
+  private efpFriendsService: EfpFriendsService;
+  private upFriendsService: UpFriendsService;   // Add this
+
+  constructor(connectionString: string) {
+    super();
+    this.efpFriendsService = new EfpFriendsService();
+    this.upFriendsService = new UpFriendsService();   // Add this
+  }
+}
+```
+
+#### 6. **Testing and Validation**
+
+Test the new identity type:
+
+```bash
+# Test UP address detection
+curl -X POST localhost:3001/api/user \
+  -H "Content-Type: application/json" \
+  -d '{"method": "getUserFriends", "userId": "0x1234...abcd", "params": {"limit": 10}}'
+
+# Verify database records
+SELECT user_id, identity_type, up_address FROM users WHERE identity_type = 'universal_profile';
+```
+
+### Key Implementation Patterns
+
+1. **Cache Strategy**: Always implement in-memory caching with expiration
+2. **Error Handling**: Graceful fallback to database friends on API failures  
+3. **Logging**: Comprehensive debug logging for troubleshooting
+4. **Identity Detection**: Clear patterns for detecting user types
+5. **Database Consistency**: Proper identity_type and address field population
+
+### External API Integration
+
+Each identity type typically requires:
+- **API Documentation**: Study the official API docs (e.g., LUKSO Universal Profile docs)
+- **Rate Limiting**: Implement respectful request patterns
+- **Authentication**: Handle API keys or authentication if required
+- **Data Transformation**: Convert external format to `FriendInfo[]` format
+
+### Testing Checklist
+
+- [ ] New users properly detected and categorized
+- [ ] Friends fetched from correct external API
+- [ ] Database fallback works on API failures
+- [ ] Caching prevents redundant API calls
+- [ ] User records created with correct identity fields
+- [ ] Pagination works correctly
+- [ ] Error handling doesn't break existing functionality
+
 ## 📈 Roadmap
 
 ### Phase 1: Foundation ✅

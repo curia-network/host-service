@@ -41,7 +41,7 @@ interface EFPFriendsCache {
  */
 export class EfpFriendsService {
   private static readonly EFP_API_BASE = 'https://api.ethfollow.xyz/api/v1';
-  private static readonly ENS_DATA_API = 'https://ensdata.net';
+  private static readonly ENS_DATA_API = 'https://api.ensdata.net';
   private static readonly CHUNK_SIZE = 1000; // Match existing pagination pattern
   private static readonly CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour cache
   private static readonly MAX_RETRIES = 3;
@@ -253,7 +253,7 @@ export class EfpFriendsService {
       if (response.ok) {
         const data = await response.json();
         return {
-          name: data.name || null,
+          name: data.ens || null, // Use 'ens' field instead of 'name'
           avatar: data.avatar || null
         };
       }

@@ -7,6 +7,7 @@
  */
 
 import { Pool } from 'pg';
+import { EfpFriendsService } from './friends/EfpFriendsService';
 
 /**
  * User information structure matching Common Ground's format
@@ -120,19 +121,23 @@ export abstract class DataProvider {
 }
 
 /**
- * Database-backed data provider implementation
+ * Database implementation of DataProvider using PostgreSQL
  */
 export class DatabaseDataProvider extends DataProvider {
   private db: Pool;
+  private efpFriendsService: EfpFriendsService;
 
   constructor() {
     super();
     
-    // Initialize database connection
+    // Initialize PostgreSQL connection
     this.db = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
+
+    // Initialize EFP friends service
+    this.efpFriendsService = new EfpFriendsService();
   }
 
   async getUserInfo(userId: string, communityId: string): Promise<ApiResponse<UserInfo>> {
@@ -282,7 +287,56 @@ export class DatabaseDataProvider extends DataProvider {
     offset: number = 0
   ): Promise<ApiResponse<{ friends: FriendInfo[] }>> {
     try {
-      // Query user friends from database
+      console.log(`[DatabaseDataProvider] getUserFriends for userId: ${userId}`);
+      
+      // First, check user identity information to see if they're an ENS user
+      const identityQuery = `
+        SELECT identity_type, wallet_address, ens_domain
+        FROM users 
+        WHERE user_id = $1
+      `;
+      
+      const identityResult = await this.db.query(identityQuery, [userId]);
+      
+      if (identityResult.rows.length === 0) {
+        console.log(`[DatabaseDataProvider] User ${userId} not found, returning empty friends`);
+        return {
+          data: { friends: [] },
+          success: true
+        };
+      }
+
+      const userIdentity = identityResult.rows[0];
+      const { identity_type, wallet_address, ens_domain } = userIdentity;
+      
+      // Check if this is an ENS user with a wallet address
+      if (identity_type === 'ens' && wallet_address) {
+        console.log(`[DatabaseDataProvider] ENS user detected: ${userId} (${ens_domain || 'no ENS'} - ${wallet_address}), fetching EFP friends`);
+        
+        try {
+          // Fetch friends from EFP API using our EfpFriendsService
+          const efpFriends = await this.efpFriendsService.fetchWithCache(wallet_address, userId);
+          
+          // Apply pagination to EFP results
+          const paginatedFriends = efpFriends.slice(offset, offset + limit);
+          
+          console.log(`[DatabaseDataProvider] ✅ Fetched ${efpFriends.length} EFP friends for ${userId}, returning ${paginatedFriends.length} (page ${Math.floor(offset/limit) + 1})`);
+          
+          return {
+            data: { friends: paginatedFriends },
+            success: true
+          };
+          
+        } catch (efpError) {
+          console.error(`[DatabaseDataProvider] EFP fetch failed for user ${userId}:`, efpError);
+          // Fall through to database query as fallback
+        }
+      } else {
+        console.log(`[DatabaseDataProvider] Non-ENS user: ${userId} (identity_type: ${identity_type}), using database friends`);
+      }
+      
+      // For non-ENS users or when EFP fails, query user friends from database (existing behavior)
+      console.log(`[DatabaseDataProvider] Using database friends for user ${userId}`);
       const friendsQuery = `
         SELECT 
           friend_user_id as id,
@@ -301,6 +355,8 @@ export class DatabaseDataProvider extends DataProvider {
         name: row.name,
         imageUrl: row.imageUrl
       }));
+
+      console.log(`[DatabaseDataProvider] Returning ${friends.length} database friends for user ${userId}`);
 
       return {
         data: { friends },

@@ -184,6 +184,16 @@ export class MessageRouter {
       if (message.signature) {
         console.log('[MessageRouter] 🔐 Validating signature (frontend Web Crypto API)');
         
+        // 🔍 SPECIAL DEBUG for getUserFriends method
+        if (message.method === 'getUserFriends') {
+          console.log('[MessageRouter] 🔍 DEBUG getUserFriends - Full message:', JSON.stringify(message, null, 2));
+          console.log('[MessageRouter] 🔍 DEBUG getUserFriends - Params structure:', {
+            params: message.params,
+            paramsType: typeof message.params,
+            paramsKeys: message.params ? Object.keys(message.params) : 'no params'
+          });
+        }
+        
         try {
           // Reconstruct original signed data (what CgPluginLib actually signed)
           const originalSignedData: any = {
@@ -203,16 +213,38 @@ export class MessageRouter {
           console.log('[MessageRouter] 🔍 DEBUG - Data for validation:', JSON.stringify(originalSignedData, null, 2));
           console.log('[MessageRouter] 🔍 DEBUG - Signature length:', message.signature?.length);
 
+          // 🔍 EXTRA DEBUG for getUserFriends
+          if (message.method === 'getUserFriends') {
+            console.log('[MessageRouter] 🔍 DEBUG getUserFriends - About to validate signature with data:', JSON.stringify(originalSignedData, null, 2));
+          }
+
           // Validate signature using browser-native Web Crypto API
           const isValid = await this.signatureValidator.validateSignature(originalSignedData, message.signature);
           
           if (!isValid) {
+            // 🔍 EXTRA DEBUG for getUserFriends failures
+            if (message.method === 'getUserFriends') {
+              console.error('[MessageRouter] ❌ getUserFriends signature validation FAILED');
+              console.error('[MessageRouter] ❌ Failed data:', JSON.stringify(originalSignedData, null, 2));
+              console.error('[MessageRouter] ❌ Failed signature:', message.signature);
+            }
             throw new Error('Invalid signature - request rejected');
           }
           
           console.log('[MessageRouter] ✅ Frontend signature validation passed');
+          
+          // 🔍 SUCCESS DEBUG for getUserFriends
+          if (message.method === 'getUserFriends') {
+            console.log('[MessageRouter] 🎉 getUserFriends signature validation PASSED!');
+          }
         } catch (error) {
           console.error('[MessageRouter] ❌ Frontend signature validation failed:', error);
+          
+          // 🔍 EXTRA DEBUG for getUserFriends failures
+          if (message.method === 'getUserFriends') {
+            console.error('[MessageRouter] ❌ getUserFriends signature validation ERROR:', error);
+          }
+          
           this.sendError(source, message, `Signature validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
           return;
         }

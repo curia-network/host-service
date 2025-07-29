@@ -73,10 +73,10 @@
 
 ### **Forum Service (Simple Listener)**
 
-1. **Created SidebarActionListener component**:
+1. **Created SidebarActionListener component with toggle functionality**:
    ```typescript
    export const SidebarActionListener: React.FC = () => {
-     const { openSearch } = useGlobalSearch();
+     const { openSearch, closeSearch, isSearchOpen } = useGlobalSearch();
 
      useEffect(() => {
        const handleMessage = (event: MessageEvent) => {
@@ -88,10 +88,17 @@
          
          switch (action) {
            case 'search':
-             openSearch({
-               initialQuery: payload?.searchQuery || '',
-               autoExpandForm: false
-             });
+             // 🆕 Toggle behavior: close if open, open if closed
+             if (isSearchOpen) {
+               console.log('[SidebarActionListener] Search modal is open - closing it');
+               closeSearch();
+             } else {
+               console.log('[SidebarActionListener] Opening search modal');
+               openSearch({
+                 initialQuery: payload?.searchQuery || '',
+                 autoExpandForm: false
+               });
+             }
              break;
            case 'messages':
              // TODO: Implement messages interface
@@ -104,13 +111,20 @@
 
        window.addEventListener('message', handleMessage);
        return () => window.removeEventListener('message', handleMessage);
-     }, [openSearch]);
+     }, [openSearch, closeSearch, isSearchOpen]);
 
      return null;
    };
    ```
 
 2. **Added to layout.tsx** inside Providers for GlobalSearchContext access.
+
+**Toggle Behavior Benefits**:
+- **Intuitive UX**: Matches behavior of modern apps (GitHub, VS Code, etc.)
+- **Smart state awareness**: Uses `isSearchOpen` to determine current state
+- **Consistent with forum's Cmd+K**: Forum's built-in Cmd+K also has toggle behavior
+- **Clean interaction**: One action for both open and close operations
+- **Unified experience**: Host-level and forum-level shortcuts now behave identically
 
 ### **Global Keyboard Shortcuts (Cmd+K)**
 
@@ -202,8 +216,8 @@ private renderSearchStub(): HTMLElement {
 
 ## 🎯 CURRENT FUNCTIONALITY
 
-- ✅ **Search Button**: Opens GlobalSearchModal in forum (desktop + mobile touch)
-- ✅ **Cmd+K Shortcut**: Opens GlobalSearchModal in forum (cross-platform: Cmd+K on Mac, Ctrl+K on Windows/Linux)
+- ✅ **Search Button**: Toggles GlobalSearchModal in forum (open/close - desktop + mobile touch)
+- ✅ **Cmd+K Shortcut**: Toggles GlobalSearchModal in forum (open/close - cross-platform: Cmd+K on Mac, Ctrl+K on Windows/Linux)
 - 🚧 **Messages Button**: Placeholder (ready for implementation - desktop + mobile touch)
 - 🚧 **Notifications Button**: Placeholder (ready for implementation - desktop + mobile touch)
 
@@ -215,7 +229,7 @@ private renderSearchStub(): HTMLElement {
     ↓
 [CommunitySidebar.handleNavItemClick()] 
     ↓
-[MessageRouter.sendSidebarAction()] 
+[MessageRouter.sendSidebarAction('search')] 
     ↓
 [Gets active iframe via getActiveIframe callback]
     ↓
@@ -223,7 +237,7 @@ private renderSearchStub(): HTMLElement {
     ↓
 [SidebarActionListener receives message]
     ↓
-[Triggers appropriate forum action]
+[Checks isSearchOpen: if open → closeSearch(), if closed → openSearch()]
 ```
 
 ### **Keyboard Shortcut (Cmd+K)**
@@ -240,7 +254,7 @@ private renderSearchStub(): HTMLElement {
     ↓
 [SidebarActionListener receives message]
     ↓
-[Opens GlobalSearchModal]
+[Checks isSearchOpen: if open → closeSearch(), if closed → openSearch()]
 ```
 
 ### **Mobile Touch (iPhone/Android)**
@@ -257,7 +271,7 @@ private renderSearchStub(): HTMLElement {
     ↓
 [SidebarActionListener receives message]
     ↓
-[Opens GlobalSearchModal]
+[Checks isSearchOpen: if open → closeSearch(), if closed → openSearch()]
 ```
 
 ## 📝 NEXT STEPS

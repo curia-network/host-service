@@ -87,6 +87,11 @@ export class FrontendSignatureValidator {
         dataKeys: Object.keys(data)
       });
 
+      // 🔍 SPECIAL DEBUG for getUserFriends method
+      if (data.method === 'getUserFriends') {
+        console.log('[FrontendSignatureValidator] 🔍 DEBUG getUserFriends - Original data:', JSON.stringify(data, null, 2));
+      }
+
       // Step 1: Normalize data exactly like CgPluginLibHost does
       const normalizedData = this.normalizeSignedData(data);
       
@@ -96,17 +101,30 @@ export class FrontendSignatureValidator {
       console.log('[FrontendSignatureValidator] 🔍 DEBUG - Serialized data:', serializedData);
       console.log('[FrontendSignatureValidator] 🔍 DEBUG - Serialized length:', serializedData.length);
       
+      // 🔍 EXTRA DEBUG for getUserFriends
+      if (data.method === 'getUserFriends') {
+        console.log('[FrontendSignatureValidator] 🔍 DEBUG getUserFriends - Normalized data:', JSON.stringify(normalizedData, null, 2));
+        console.log('[FrontendSignatureValidator] 🔍 DEBUG getUserFriends - Serialized for validation:', serializedData);
+      }
+      
       // Step 2: Convert normalized data to bytes for verification
       const dataBuffer = new TextEncoder().encode(serializedData);
       
       // Step 3: Decode base64 signature to bytes
       const signatureBuffer = this.base64ToArrayBuffer(signature);
       
-      // Step 4: Verify signature using Web Crypto API
+      // Step 4: Verify signature using Web Crypto API  
+      // TODO: We need to detect the algorithm used (ECDSA vs RSA)
+      // For now, let's try RSA first (original behavior)
+      const signatureAlgorithm = {
+        name: 'RSASSA-PKCS1-v1_5',
+      };
+      
+      // 🔍 DEBUG algorithm being used
+      console.log('[FrontendSignatureValidator] 🔍 Using signature algorithm:', JSON.stringify(signatureAlgorithm, null, 2));
+      
       const isValid = await crypto.subtle.verify(
-        {
-          name: 'RSASSA-PKCS1-v1_5', // ✅ CONFIRMED from CgPluginLibHost
-        },
+        signatureAlgorithm,
         this.publicKey,
         signatureBuffer,
         dataBuffer

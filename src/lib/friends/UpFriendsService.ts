@@ -473,7 +473,7 @@ export class UpFriendsService {
   }
 
   /**
-   * Convert UP addresses to FriendInfo with profile resolution
+   * Convert UP addresses to FriendInfo with batch profile resolution
    */
   private async convertAddressesToFriends(addresses: string[]): Promise<FriendInfo[]> {
     console.log(`[UpFriendsService] 🔄 Converting ${addresses.length} addresses to FriendInfo`);
@@ -482,31 +482,129 @@ export class UpFriendsService {
       return [];
     }
 
-    const friends: FriendInfo[] = [];
-
-    // Process addresses in parallel with limited concurrency
-    const chunks = this.chunkArray(addresses, 10); // Process 10 at a time
+    // Batch resolve profiles for efficiency
+    const profileMap = await this.batchResolveProfiles(addresses);
     
-    for (const chunk of chunks) {
-      const chunkPromises = chunk.map(address => this.convertAddressToFriendInfo(address));
-      const chunkResults = await Promise.allSettled(chunkPromises);
+    // Convert addresses to FriendInfo using resolved profiles
+    const friends: FriendInfo[] = addresses.map(address => {
+      const profile = profileMap.get(address);
       
-      chunkResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value) {
-          friends.push(result.value);
-        } else {
-          console.warn(`[UpFriendsService] ⚠️ Failed to convert UP address ${chunk[index]}`);
-        }
-      });
-
-      // Rate limiting between chunks
-      if (chunk !== chunks[chunks.length - 1]) {
-        await this.delay(200);
-      }
-    }
+      return {
+        id: address,
+        name: profile?.name || this.formatAddress(address),
+        image: profile?.avatar || undefined // TODO: Add avatar support
+      };
+    });
 
     console.log(`[UpFriendsService] ✅ Successfully converted ${friends.length}/${addresses.length} addresses`);
     return friends;
+  }
+
+  /**
+   * Batch resolve UP profiles using GraphQL for optimal performance
+   */
+  private async batchResolveProfiles(addresses: string[]): Promise<Map<string, UPProfile>> {
+    console.log(`[UpFriendsService] 📦 Batch resolving ${addresses.length} UP profiles`);
+    
+    const profileMap = new Map<string, UPProfile>();
+    const now = Date.now();
+    
+    // Check cache first and collect uncached addresses
+    const uncachedAddresses: string[] = [];
+    
+    for (const address of addresses) {
+      const cached = this.profileCache.get(address);
+      if (cached && (now - cached.timestamp) < UpFriendsService.PROFILE_CACHE_DURATION_MS) {
+        profileMap.set(address, cached.profile);
+      } else {
+        uncachedAddresses.push(address);
+      }
+    }
+    
+    console.log(`[UpFriendsService] 💾 Found ${profileMap.size} cached profiles, fetching ${uncachedAddresses.length} from GraphQL`);
+    
+    if (uncachedAddresses.length === 0) {
+      return profileMap;
+    }
+
+    try {
+      // Batch query uncached profiles from GraphQL
+      const BATCH_PROFILE_QUERY = gql`
+        query GetBatchProfiles($addresses: [String!]!) {
+          Profile(where: { id: { _in: $addresses } }) {
+            id
+            name
+            fullName
+            description
+          }
+        }
+      `;
+
+      const variables = { 
+        addresses: uncachedAddresses.map(addr => addr.toLowerCase()) 
+      };
+      
+      const response: any = await this.graphqlClient.request(BATCH_PROFILE_QUERY, variables);
+
+      if (response.Profile && Array.isArray(response.Profile)) {
+        // Process found profiles
+        response.Profile.forEach((profileData: any) => {
+          const address = profileData.id; // GraphQL returns lowercase
+          const originalAddress = addresses.find(addr => addr.toLowerCase() === address);
+          
+          if (originalAddress) {
+            const profile: UPProfile = {
+              name: profileData.name || profileData.fullName || null,
+              avatar: null, // TODO: Add avatar resolution
+              description: profileData.description || null
+            };
+            
+            profileMap.set(originalAddress, profile);
+            
+            // Cache the profile
+            this.profileCache.set(originalAddress, {
+              profile,
+              timestamp: now
+            });
+          }
+        });
+        
+        console.log(`[UpFriendsService] ✅ Resolved ${response.Profile.length} profiles via batch GraphQL`);
+      }
+      
+      // Add empty profiles for addresses not found in GraphQL
+      for (const address of uncachedAddresses) {
+        if (!profileMap.has(address)) {
+          const emptyProfile: UPProfile = { name: null, avatar: null };
+          profileMap.set(address, emptyProfile);
+          
+          // Cache the empty profile to avoid repeated lookups
+          this.profileCache.set(address, {
+            profile: emptyProfile,
+            timestamp: now
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error(`[UpFriendsService] ❌ Batch profile resolution failed:`, error);
+      
+      // Add fallback profiles for all uncached addresses
+      for (const address of uncachedAddresses) {
+        if (!profileMap.has(address)) {
+          const fallbackProfile: UPProfile = { name: null, avatar: null };
+          profileMap.set(address, fallbackProfile);
+          
+          // Cache the fallback to avoid repeated failures
+          this.profileCache.set(address, {
+            profile: fallbackProfile,
+            timestamp: now
+          });
+        }
+      }
+    }
+    
+    return profileMap;
   }
 
   /**
@@ -537,7 +635,7 @@ export class UpFriendsService {
   }
 
   /**
-   * Resolve Universal Profile name and avatar from LSP3 metadata
+   * Resolve Universal Profile data using LUKSO GraphQL indexer (replaces ERC725.js)
    */
   private async resolveUPProfile(upAddress: string): Promise<UPProfile> {
     // Check profile cache first
@@ -549,33 +647,30 @@ export class UpFriendsService {
     }
 
     try {
-      console.log(`[UpFriendsService] 🔍 Resolving LSP3 profile for ${upAddress}`);
+      console.log(`[UpFriendsService] 🔍 Resolving UP profile via GraphQL for ${upAddress}`);
 
-      // Initialize ERC725 instance for this UP
-      const erc725 = new ERC725(
-        [
-          {
-            name: 'LSP3Profile',
-            key: '0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5',
-            keyType: 'Singleton',
-            valueType: 'bytes',
-            valueContent: 'JSONURL'
+      // Query profile data from LUKSO GraphQL indexer
+      const PROFILE_QUERY = gql`
+        query GetProfile($upAddress: String!) {
+          Profile(where: { id: { _eq: $upAddress } }) {
+            id
+            name
+            fullName
+            description
           }
-        ],
-        upAddress,
-        this.provider
-      );
+        }
+      `;
 
-      // Fetch LSP3Profile data
-      const profileData = await erc725.fetchData('LSP3Profile');
-      
-      if (profileData && profileData.value) {
-        const metadata = profileData.value as LSP3ProfileMetadata;
+      const variables = { upAddress: upAddress.toLowerCase() };
+      const response: any = await this.graphqlClient.request(PROFILE_QUERY, variables);
+
+      if (response.Profile && response.Profile.length > 0) {
+        const profileData = response.Profile[0];
         
         const profile: UPProfile = {
-          name: metadata.LSP3Profile?.name || null,
-          avatar: this.extractAvatarUrl(metadata.LSP3Profile) || null,
-          description: metadata.LSP3Profile?.description || null
+          name: profileData.name || profileData.fullName || null,
+          avatar: null, // TODO: Add avatar resolution in next iteration
+          description: profileData.description || null
         };
 
         // Cache the profile
@@ -584,7 +679,7 @@ export class UpFriendsService {
           timestamp: now
         });
 
-        console.log(`[UpFriendsService] ✅ Resolved profile: ${profile.name} (${upAddress})`);
+        console.log(`[UpFriendsService] ✅ Resolved profile via GraphQL: ${profile.name} (${upAddress})`);
         return profile;
       }
 
@@ -594,7 +689,7 @@ export class UpFriendsService {
       return emptyProfile;
 
     } catch (error) {
-      console.warn(`[UpFriendsService] ⚠️ Profile resolution failed for ${upAddress}:`, error);
+      console.warn(`[UpFriendsService] ⚠️ GraphQL profile resolution failed for ${upAddress}:`, error);
       const emptyProfile: UPProfile = { name: null, avatar: null };
       this.profileCache.set(upAddress, { profile: emptyProfile, timestamp: now });
       return emptyProfile;

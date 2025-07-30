@@ -8,6 +8,7 @@
 
 import { Pool } from 'pg';
 import { EfpFriendsService } from './friends/EfpFriendsService';
+import { UpFriendsService } from './friends/UpFriendsService';
 
 /**
  * User information structure matching Common Ground's format
@@ -126,6 +127,7 @@ export abstract class DataProvider {
 export class DatabaseDataProvider extends DataProvider {
   private db: Pool;
   private efpFriendsService: EfpFriendsService;
+  private upFriendsService: UpFriendsService;
 
   constructor() {
     super();
@@ -136,8 +138,9 @@ export class DatabaseDataProvider extends DataProvider {
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
 
-    // Initialize EFP friends service
+    // Initialize friends services
     this.efpFriendsService = new EfpFriendsService();
+    this.upFriendsService = new UpFriendsService();
   }
 
   async getUserInfo(userId: string, communityId: string): Promise<ApiResponse<UserInfo>> {
@@ -289,9 +292,9 @@ export class DatabaseDataProvider extends DataProvider {
     try {
       console.log(`[DatabaseDataProvider] getUserFriends for userId: ${userId}`);
       
-      // First, check user identity information to see if they're an ENS user
+      // First, check user identity information to see what type of user they are
       const identityQuery = `
-        SELECT identity_type, wallet_address, ens_domain
+        SELECT identity_type, wallet_address, ens_domain, up_address
         FROM users 
         WHERE user_id = $1
       `;
@@ -307,10 +310,41 @@ export class DatabaseDataProvider extends DataProvider {
       }
 
       const userIdentity = identityResult.rows[0];
-      const { identity_type, wallet_address, ens_domain } = userIdentity;
+      const { identity_type, wallet_address, ens_domain, up_address } = userIdentity;
+      
+      // Check if this is a Universal Profile user
+      if (identity_type === 'universal_profile' && up_address) {
+        console.log(`[DatabaseDataProvider] Universal Profile user detected: ${userId} (${up_address}), fetching UP friends`);
+        
+        try {
+          // Fetch friends from LUKSO GraphQL/RPC using our UpFriendsService
+          const upFriendsRaw = await this.upFriendsService.fetchWithCache(up_address, userId);
+          
+          // Convert from UpFriendsService format (image) to local format (imageUrl)
+          const upFriends: FriendInfo[] = upFriendsRaw.map(friend => ({
+            id: friend.id,
+            name: friend.name,
+            imageUrl: friend.image
+          }));
+          
+          // Apply pagination to UP results
+          const paginatedFriends = upFriends.slice(offset, offset + limit);
+          
+          console.log(`[DatabaseDataProvider] ✅ Fetched ${upFriends.length} UP friends for ${userId}, returning ${paginatedFriends.length} (page ${Math.floor(offset/limit) + 1})`);
+          
+          return {
+            data: { friends: paginatedFriends },
+            success: true
+          };
+          
+        } catch (upError) {
+          console.error(`[DatabaseDataProvider] UP fetch failed for user ${userId}:`, upError);
+          // Fall through to database query as fallback
+        }
+      }
       
       // Check if this is an ENS user with a wallet address
-      if (identity_type === 'ens' && wallet_address) {
+      else if (identity_type === 'ens' && wallet_address) {
         console.log(`[DatabaseDataProvider] ENS user detected: ${userId} (${ens_domain || 'no ENS'} - ${wallet_address}), fetching EFP friends`);
         
         try {
@@ -332,10 +366,10 @@ export class DatabaseDataProvider extends DataProvider {
           // Fall through to database query as fallback
         }
       } else {
-        console.log(`[DatabaseDataProvider] Non-ENS user: ${userId} (identity_type: ${identity_type}), using database friends`);
+        console.log(`[DatabaseDataProvider] Legacy/anonymous user: ${userId} (identity_type: ${identity_type}), using database friends`);
       }
       
-      // For non-ENS users or when EFP fails, query user friends from database (existing behavior)
+      // For legacy/anonymous users or when external APIs fail, query user friends from database (existing behavior)
       console.log(`[DatabaseDataProvider] Using database friends for user ${userId}`);
       const friendsQuery = `
         SELECT 

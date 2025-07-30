@@ -492,7 +492,7 @@ export class UpFriendsService {
       return {
         id: address,
         name: profile?.name || this.formatAddress(address),
-        image: profile?.avatar || undefined // TODO: Add avatar support
+        image: profile?.avatar || undefined
       };
     });
 
@@ -536,6 +536,12 @@ export class UpFriendsService {
             name
             fullName
             description
+            avatars {
+              url
+            }
+            profileImages {
+              url
+            }
           }
         }
       `;
@@ -555,7 +561,7 @@ export class UpFriendsService {
           if (originalAddress) {
             const profile: UPProfile = {
               name: profileData.name || profileData.fullName || null,
-              avatar: null, // TODO: Add avatar resolution
+              avatar: this.extractAvatarFromGraphQL(profileData),
               description: profileData.description || null
             };
             
@@ -657,6 +663,12 @@ export class UpFriendsService {
             name
             fullName
             description
+            avatars {
+              url
+            }
+            profileImages {
+              url
+            }
           }
         }
       `;
@@ -669,7 +681,7 @@ export class UpFriendsService {
         
         const profile: UPProfile = {
           name: profileData.name || profileData.fullName || null,
-          avatar: null, // TODO: Add avatar resolution in next iteration
+          avatar: this.extractAvatarFromGraphQL(profileData),
           description: profileData.description || null
         };
 
@@ -713,6 +725,29 @@ export class UpFriendsService {
       const avatar = lsp3Profile.avatar[0]; // Use first avatar
       if (avatar?.url) {
         return this.resolveIpfsUrl(avatar.url);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract avatar URL from GraphQL Profile response
+   */
+  private extractAvatarFromGraphQL(profileData: any): string | null {
+    // Try avatars array first
+    if (profileData?.avatars && Array.isArray(profileData.avatars) && profileData.avatars.length > 0) {
+      const avatar = profileData.avatars[0];
+      if (avatar?.url) {
+        return this.resolveIpfsUrl(avatar.url);
+      }
+    }
+
+    // Fallback to profileImages array
+    if (profileData?.profileImages && Array.isArray(profileData.profileImages) && profileData.profileImages.length > 0) {
+      const profileImage = profileData.profileImages[0];
+      if (profileImage?.url) {
+        return this.resolveIpfsUrl(profileImage.url);
       }
     }
 

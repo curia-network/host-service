@@ -767,15 +767,90 @@ curia-chat-modal/
 
 4. **Development priority**: Should we complete the full modal first, or get a basic iframe working immediately?
 
-### **Ready to Start** ✅
+### **PHASE 0 REFINED IMPLEMENTATION PLAN** ⭐ **UPDATED**
 
-I'm prepared to begin Phase 0 implementation with your approval. The package will be fully functional for local development and testing within ~4 hours of work.
+**Scope**: Get basic modal working for immediate testing with The Lounge iframe integration
 
-**Next Action**: Create the package structure and core components, then test integration in curia repo.
+#### **Verified Integration Points** ✅
+- ✅ **postMessage Already Implemented**: `host-service` already sends `'messages'` action via `sendSidebarAction('messages')`
+- ✅ **Integration Hook Ready**: `SidebarActionListener.tsx` has placeholder case for `'messages'` (line 53)
+- ✅ **Modal Pattern Established**: `WhatsNewModal` provides exact responsive pattern to follow
+
+#### **Phase 0 Tasks** (3-4 hours total)
+
+1. **Package Setup** (30 mins)
+   - Fix `curia-chat-modal/package.json` with TypeScript & React dependencies
+   - Create `tsconfig.json`
+
+2. **Core Components** (2 hours)
+   - `ChatContext.tsx` - Simple state management (open/close)
+   - `ChatModal.tsx` - Responsive modal with iframe to configurable URL
+   - `useChatModal.ts` - Hook export
+   - `types/index.ts` & `index.ts` - Package exports
+
+3. **Environment Configuration** (15 mins)
+   - Support `NEXT_PUBLIC_CHAT_BASE_URL` env var in iframe src
+   - Default fallback to `https://chat.curia.network`
+
+4. **Curia Integration** (1 hour)
+   - Add package: `yarn add file:../curia-chat-modal` (from curia directory)
+   - Import and wire up in `SidebarActionListener.tsx` 'messages' case
+   - Add `ChatProvider` to app providers
+
+5. **Testing** (30 mins)
+   - Verify modal opens/closes from sidebar message icon
+   - Verify iframe loads The Lounge
+   - Test responsive behavior (desktop/mobile)
+
+#### **Technical Specifications**
+
+**Environment Variable**:
+```bash
+# Add to curia/.env.local
+NEXT_PUBLIC_CHAT_BASE_URL=https://chat.curia.network
+```
+
+**Modal Implementation**:
+```typescript
+// Iframe URL construction in ChatModal.tsx
+const chatBaseUrl = process.env.NEXT_PUBLIC_CHAT_BASE_URL || 'https://chat.curia.network';
+const chatUrl = `${chatBaseUrl}?autoconnect&nick=CGUser&join=%23general`;
+```
+
+**Integration Code** (SidebarActionListener.tsx):
+```typescript
+case 'messages':
+  if (isChatOpen) {
+    closeChat();
+  } else {
+    openChat();
+  }
+  break;
+```
+
+#### **Deferred for Later Phases**
+- ❌ Pop-out functionality (architecture only)
+- ❌ Community-specific channels
+- ❌ User nickname integration
+- ❌ Advanced authentication
+- ❌ Theme customization
+
+#### **Success Criteria** ✅
+- [ ] Sidebar message icon opens chat modal
+- [ ] Modal shows The Lounge interface in iframe
+- [ ] Modal closes via ESC key or backdrop click
+- [ ] Responsive design works (desktop sidebar, mobile drawer)
+- [ ] Environment variable controls iframe URL
+
+### **Ready to Proceed** 🚀
+
+**Estimated completion**: 3-4 hours for fully functional package ready for testing.
+
+**Next Action**: Build the package components and test integration in curia app.
 
 ---
 
-*✅ Research Status: **COMPLETE WITH STRATEGIC ANALYSIS & IMPLEMENTATION PLAN***  
-*🎯 Architecture Decision: **Curia Forum Level + Local Yarn Package***  
-*🚀 Ready for Implementation: **YES - Awaiting Phase 0 Approval***  
-*📅 Next Step: Build `curia-chat-modal` package*
+*✅ Research Status: **COMPLETE WITH REFINED IMPLEMENTATION PLAN***  
+*🎯 Scope: **Basic Modal + Iframe Integration for Testing***  
+*🚀 Implementation Ready: **YES - postMessage Integration Verified***  
+*📅 Next Step: Execute Phase 0 refined plan*

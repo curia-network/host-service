@@ -15,6 +15,10 @@ import { ApiProxyClient } from '@curia_/iframe-api-proxy';
 import { InternalAuthContext } from '../auth/AuthenticationService';
 import { FrontendSignatureValidator } from '../signature';
 
+// Shared per-page-session caches (singleton across all MessageRouter instances)
+const ircCredentialsCache: Map<string, any> = new Map();
+const pendingIrcRequests: Map<string, Promise<any>> = new Map();
+
 export enum InternalMessageType {
   API_REQUEST = 'api_request',
   API_RESPONSE = 'api_response',
@@ -61,6 +65,7 @@ export class MessageRouter {
   private messageListener?: (event: MessageEvent) => void;
   private myUid: string;
   private signatureValidator: FrontendSignatureValidator;
+  // Deprecated instance caches (kept for clarity; now using module-level caches)
 
   constructor(
     myUid: string,
@@ -268,6 +273,67 @@ export class MessageRouter {
 
         const switchResult = await this.callbacks.onCommunitySwitchRequest(communityId, options);
         this.sendResponse(source, message, switchResult);
+        return;
+      }
+
+      // Short-circuit repeated IRC provisioning within a page session
+      if (message.method === 'getIrcCredentials') {
+        // Cache per user across all communities during the page session
+        const cacheKey = `${authContext.userId}`;
+
+        // Return from cache if available
+        if (ircCredentialsCache.has(cacheKey)) {
+          console.log('[MessageRouter] IRC credentials cache hit for', cacheKey);
+          this.sendResponse(source, message, ircCredentialsCache.get(cacheKey));
+          return;
+        }
+
+        // If a provisioning request is already in-flight for this key, await it
+        const inFlight = pendingIrcRequests.get(cacheKey);
+        if (inFlight) {
+          console.log('[MessageRouter] IRC credentials request already in-flight for', cacheKey);
+          try {
+            const creds = await inFlight;
+            this.sendResponse(source, message, creds);
+          } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+            this.sendError(source, message, errorMessage);
+          }
+          return;
+        }
+
+        // Start a new provisioning request and dedupe others against it
+        const requestPromise = (async () => {
+          const result = await this.apiProxy.makeApiRequest({
+            method: message.method as any,
+            params: message.params,
+            communityId: authContext.communityId,
+            userId: authContext.userId,
+            signature: message.signature
+          });
+
+          if (!result.success) {
+            throw new Error(result.error || 'API request failed');
+          }
+
+          const creds = result.data;
+          // Cache raw credentials payload (router sends payload-only)
+          ircCredentialsCache.set(cacheKey, creds);
+          return creds;
+        })()
+          .finally(() => {
+            pendingIrcRequests.delete(cacheKey);
+          });
+
+        pendingIrcRequests.set(cacheKey, requestPromise);
+
+        try {
+          const creds = await requestPromise;
+          this.sendResponse(source, message, creds);
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+          this.sendError(source, message, errorMessage);
+        }
         return;
       }
 

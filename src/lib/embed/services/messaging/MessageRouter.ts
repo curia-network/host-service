@@ -346,7 +346,8 @@ export class MessageRouter {
       'giveRole',
       'switchCommunity',
       'getUserCommunities',  // 🎯 For fetchUserCommunities() - bypasses CSP
-      'getUserProfile'       // 🎯 For fetchUserProfile() - bypasses CSP
+      'getUserProfile',      // 🎯 For fetchUserProfile() - bypasses CSP
+      'getIrcCredentials'    // 🎯 For IRC chat functionality - handled directly by PluginHost
     ];
     
     return supportedMethods.includes(method);
